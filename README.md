@@ -3,7 +3,9 @@
 A mobile-first web app for planning and logging gym workouts, with a muscle map for every exercise.
 
 **Live app:** https://will-clutter.github.io/workout-tracker/
-
+   <img src="images/app_ss.png" alt="App screenshot" width="300">
+   <img src="images/app_ss2.png" alt="App screenshot" width="300">
+   <img src="images/app_ss3.png" alt="App screenshot" width="300">
 Built with JavaScript, HTML, and CSS (no frameworks), hosted on GitHub Pages. Developed with AI assistance.
 
 ## Files
