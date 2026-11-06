@@ -1,15 +1,10 @@
 # Workout Logbook
 
-A phone-friendly web app for planning and logging workouts.
+A mobile-first web app for planning and logging gym workouts, with a muscle map for every exercise.
 
-- Multiple workouts (e.g. "Full Body", "Upper", "Lower"), each renamable
-- Add exercises from a database of 870+ exercises, or create your own
-- Body map showing primary (bright red) and secondary (dark red) muscles
-- Edit sets, reps, weight and notes for each exercise
-- Log a session to save a dated record in History
+**Live app:** https://will-clutter.github.io/workout-tracker/
 
-Your data is saved in your browser on that device (`localStorage`).
-Clearing your browser data will erase it.
+Built with JavaScript, HTML, and CSS (no frameworks), hosted on GitHub Pages. Developed with AI assistance.
 
 ## Files
 
