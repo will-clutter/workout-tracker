@@ -45,6 +45,7 @@ Then open http://localhost:8000 in your browser. Press `Ctrl+C` to stop.
 Open that link on your phone and use **Add to Home Screen** to get an app icon.
 
 ## Credits
+Icons: Font Awesome Free (fontawesome.com), CC BY 4.0.
 
 Exercise data and photos (resized and converted to WebP): [free-exercise-db](https://github.com/yuhonas/free-exercise-db)
 by yuhonas, released into the public domain (Unlicense).
