@@ -525,8 +525,6 @@ function openDetail(exId, { inWorkout = false } = {}) {
     `<img src="${PHOTO_DIR + encodeURIComponent(ex.id)}_${i}.webp" alt="${escapeHtml(ex.name)} demonstration" loading="lazy" onerror="this.remove()">`
   ).join("");
 
-  const steps = (ex.instructions || []).map(s => `<li>${escapeHtml(s)}</li>`).join("");
-
   let actionButton;
   if (inWorkout) {
     actionButton = `<button class="btn ghost big" data-close>Back to workout</button>`;
@@ -543,7 +541,7 @@ function openDetail(exId, { inWorkout = false } = {}) {
       ${legendHtml()}
     </div>
     ${photos ? `<div class="photos">${photos}</div>` : ""}
-    ${steps ? `<details class="more-info glass"><summary>How to do it</summary><ol>${steps}</ol></details>` : ""}
+    <div id="detailSteps" data-id="${escapeHtml(ex.id)}"></div>
     ${ex.custom ? `<button class="btn danger small" id="deleteCustomBtn">Delete this custom exercise</button>` : ""}
     <div class="detail-actions">${actionButton}</div>
   `;
@@ -554,6 +552,36 @@ function openDetail(exId, { inWorkout = false } = {}) {
   $("deleteCustomBtn")?.addEventListener("click", () => deleteCustomExercise(ex));
 
   openSheet("detailSheet");
+  if (!ex.custom) showSteps(ex.id); // custom exercises have no instructions
+}
+
+/* ---------- Step-by-step instructions ----------
+   These live in their own file (data/instructions.json) because they're
+   most of the exercise data but only needed here. It's downloaded the
+   first time you open an exercise's details, then kept in memory. */
+
+let instructionsRequest = null;
+
+function loadInstructions() {
+  instructionsRequest ??= fetch("data/instructions.json")
+    .then(response => response.json())
+    .catch(err => { instructionsRequest = null; throw err; }); // let the next open try again
+  return instructionsRequest;
+}
+
+async function showSteps(exId) {
+  let steps;
+  try {
+    steps = (await loadInstructions())[exId];
+  } catch (err) {
+    console.error(err);
+    return showToast("Couldn't load the instructions");
+  }
+  // Skip if it has no steps, or you've already opened a different exercise
+  const box = $("detailSteps");
+  if (!steps || box.dataset.id !== exId) return;
+  box.innerHTML = `<details class="more-info glass"><summary>How to do it</summary>
+    <ol>${steps.map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ol></details>`;
 }
 
 function addToWorkout(ex, button) {
@@ -602,7 +630,6 @@ $("customBtn").addEventListener("click", async () => {
     equipment: "",
     primaryMuscles: result.primary,
     secondaryMuscles: result.secondary,
-    instructions: [],
     custom: true
   };
   state.customExercises.push(ex);
