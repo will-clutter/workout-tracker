@@ -12,14 +12,15 @@
     (free-exercise-db), e.g. "chest", "lats", "quadriceps".
 */
 
+// Grey body outline drawn underneath the muscles (same for front and back).
+// The head is symmetrical, so it's drawn once; the body half is mirrored.
+const SILHOUETTE = {
+  head: "M100 8 C88 8 81 18 81 32 C81 46 89 56 100 56 C111 56 119 46 119 32 C119 18 112 8 100 8 Z",
+  half: "M100 56 L86 58 L70 68 C58 70 52 80 51 96 L49 136 L42 184 L41 198 L50 200 L56 184 L66 140 L69 112 L71 120 L70 170 L68 196 L69 262 L71 300 L74 344 L72 360 L90 360 L88 344 L92 300 L96 262 L99 200 L100 200 Z"
+};
+
 const BODY_MAP = {
   front: {
-    // Grey body outline drawn underneath the muscles
-    silhouette: [
-      "M100 8 C88 8 81 18 81 32 C81 46 89 56 100 56 C111 56 119 46 119 32 C119 18 112 8 100 8 Z",
-      // torso + arms + legs (left half, mirrored)
-      "M100 56 L86 58 L70 68 C58 70 52 80 51 96 L49 136 L42 184 L41 198 L50 200 L56 184 L66 140 L69 112 L71 120 L70 170 L68 196 L69 262 L71 300 L74 344 L72 360 L90 360 L88 344 L92 300 L96 262 L99 200 L100 200 Z"
-    ],
     left: {
       traps:       ["M88 60 L73 69 L89 70 Z"],
       shoulders:   ["M71 70 C59 72 54 82 54 96 C59 99 64 99 68 96 C69 85 73 77 79 72 Z"],
@@ -40,10 +41,6 @@ const BODY_MAP = {
   },
 
   back: {
-    silhouette: [
-      "M100 8 C88 8 81 18 81 32 C81 46 89 56 100 56 C111 56 119 46 119 32 C119 18 112 8 100 8 Z",
-      "M100 56 L86 58 L70 68 C58 70 52 80 51 96 L49 136 L42 184 L41 198 L50 200 L56 184 L66 140 L69 112 L71 120 L70 170 L68 196 L69 262 L71 300 L74 344 L72 360 L90 360 L88 344 L92 300 L96 262 L99 200 L100 200 Z"
-    ],
     left: {
       shoulders:   ["M71 70 C59 72 54 82 54 96 C59 98 64 97 69 93 C70 84 72 77 76 72 Z"],
       triceps:     ["M56 101 C53 114 53 125 56 135 C61 137 64 134 66 129 C67 118 67 108 66 99 Z"],
@@ -65,39 +62,33 @@ const BODY_MAP = {
   }
 };
 
-/* Turn a list of path strings into SVG <path> tags.
-   mirror = true flips the shape to the other side of the body (x -> 200 - x). */
-function pathsToSvg(paths, muscle, mirror) {
-  const transform = mirror ? ' transform="translate(200,0) scale(-1,1)"' : "";
-  return paths
-    .map(d => `<path class="muscle" data-muscle="${muscle}" d="${d}"${transform}></path>`)
-    .join("");
-}
+// Flips a shape to the other side of the body (x -> 200 - x)
+const MIRROR = ' transform="translate(200,0) scale(-1,1)"';
 
-/* Build the SVG markup for one view ("front" or "back"). */
-function buildView(viewName, offsetX) {
+/*
+  Build the SVG markup for one view ("front" or "back").
+  primary / secondary = muscle names to color in.
+  Colors are added while the markup is built, so nothing has to be
+  parsed and searched afterwards.
+*/
+function buildView(viewName, offsetX, primary, secondary, showLabel = true) {
   const view = BODY_MAP[viewName];
-  let svg = `<g transform="translate(${offsetX},0)">`;
+  const muscle = (name, paths, mirror) => {
+    const level = primary.includes(name) ? " primary" : secondary.includes(name) ? " secondary" : "";
+    return paths.map(d => `<path class="muscle${level}" d="${d}"${mirror}></path>`).join("");
+  };
 
-  // Body outline (left half + mirrored right half; head is drawn twice, harmless)
-  view.silhouette.forEach(d => {
-    svg += `<path class="silhouette" d="${d}"></path>`;
-    svg += `<path class="silhouette" d="${d}" transform="translate(200,0) scale(-1,1)"></path>`;
-  });
+  let svg = `<g transform="translate(${offsetX},0)">
+    <path class="silhouette" d="${SILHOUETTE.head}"></path>
+    <path class="silhouette" d="${SILHOUETTE.half}"></path>
+    <path class="silhouette" d="${SILHOUETTE.half}"${MIRROR}></path>`;
 
-  // Muscles on both sides
-  for (const [muscle, paths] of Object.entries(view.left)) {
-    svg += pathsToSvg(paths, muscle, false);
-    svg += pathsToSvg(paths, muscle, true);
-  }
-  // Muscles in the middle
-  for (const [muscle, paths] of Object.entries(view.center)) {
-    svg += pathsToSvg(paths, muscle, false);
-  }
+  // Muscles on both sides, then muscles in the middle
+  for (const [name, paths] of Object.entries(view.left)) svg += muscle(name, paths, "") + muscle(name, paths, MIRROR);
+  for (const [name, paths] of Object.entries(view.center)) svg += muscle(name, paths, "");
 
-  svg += `<text class="view-label" x="100" y="384" text-anchor="middle">${viewName.toUpperCase()}</text>`;
-  svg += `</g>`;
-  return svg;
+  if (showLabel) svg += `<text class="view-label" x="100" y="384" text-anchor="middle">${viewName.toUpperCase()}</text>`;
+  return svg + `</g>`;
 }
 
 /*
@@ -106,57 +97,41 @@ function buildView(viewName, offsetX) {
   secondary = array of muscle names that help out (dark red)
   Returns an HTML string containing the SVG.
 */
-function renderBodyMap(primary = [], secondary = []) {
-  const svg = `
+function renderBodyMap(primary, secondary) {
+  return `
     <svg class="bodymap" viewBox="0 0 400 392" role="img"
          aria-label="Muscles worked: ${[...primary, ...secondary].join(", ") || "none"}">
-      ${buildView("front", 0)}
-      ${buildView("back", 200)}
+      ${buildView("front", 0, primary, secondary)}
+      ${buildView("back", 200, primary, secondary)}
     </svg>`;
-
-  // Use a temporary element so we can add classes to the matching muscles
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = svg;
-  wrapper.querySelectorAll(".muscle").forEach(el => {
-    const name = el.dataset.muscle;
-    if (primary.includes(name)) el.classList.add("primary");
-    else if (secondary.includes(name)) el.classList.add("secondary");
-  });
-  return wrapper.innerHTML;
 }
 
 /*
   Small single-view map for exercise cards.
-  Picks whichever side (front or back) shows more of the primary muscles.
+  Picks whichever side (front or back) shows more of the worked muscles,
+  then zooms in on the part of the body being worked so it's readable.
 */
-const FRONT_ONLY = ["chest", "biceps", "abdominals", "quadriceps", "adductors", "neck"];
+const FRONT_ONLY = ["chest", "biceps", "abdominals", "quadriceps", "adductors"];
 const BACK_ONLY = ["triceps", "lats", "middle back", "lower back", "glutes", "hamstrings"];
+const LOWER_BODY = ["quadriceps", "hamstrings", "glutes", "calves", "adductors", "abductors"];
 
-function renderMiniMap(primary = [], secondary = []) {
-  const score = list => muscles => list.filter(m => muscles.includes(m)).length;
-  const front = score(FRONT_ONLY)(primary) * 2 + score(FRONT_ONLY)(secondary);
-  const back = score(BACK_ONLY)(primary) * 2 + score(BACK_ONLY)(secondary);
+// How many of `muscles` are in `list`
+const countIn = (list, muscles) => muscles.filter(m => list.includes(m)).length;
+
+function renderMiniMap(primary, secondary) {
+  const front = countIn(FRONT_ONLY, primary) * 2 + countIn(FRONT_ONLY, secondary);
+  const back = countIn(BACK_ONLY, primary) * 2 + countIn(BACK_ONLY, secondary);
   const view = back > front ? "back" : "front";
 
-  // Zoom in on the part of the body being worked, so the small picture is readable:
   // all upper-body muscles → show torso + arms, all lower-body → show legs, mixed → whole body
-  const LOWER = ["quadriceps", "hamstrings", "glutes", "calves", "adductors", "abductors"];
-  const lowerCount = primary.filter(m => LOWER.includes(m)).length;
-  let viewBox = "38 4 124 360";                                         // whole body
-  if (primary.length && lowerCount === 0) viewBox = "40 46 120 156";      // upper body
+  const lowerCount = countIn(LOWER_BODY, primary);
+  let viewBox = "38 4 124 360";                                                       // whole body
+  if (primary.length && lowerCount === 0) viewBox = "40 46 120 156";                  // upper body
   else if (primary.length && lowerCount === primary.length) viewBox = "58 158 84 190"; // legs
 
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = `
-    <svg class="bodymap mini" viewBox="${viewBox}" aria-hidden="true">
-      ${buildView(view, 0).replace(/<text[\s\S]*?<\/text>/, "")}
-    </svg>`;
-  wrapper.querySelectorAll(".muscle").forEach(el => {
-    const name = el.dataset.muscle;
-    if (primary.includes(name)) el.classList.add("primary");
-    else if (secondary.includes(name)) el.classList.add("secondary");
-  });
-  return wrapper.innerHTML;
+  return `<svg class="bodymap mini" viewBox="${viewBox}" aria-hidden="true">
+    ${buildView(view, 0, primary, secondary, false)}
+  </svg>`;
 }
 
 // Every muscle name the database uses, for filters and custom exercises
