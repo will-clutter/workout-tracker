@@ -13,6 +13,7 @@ What changed in Workout Logbook, newest first.
 - **History shows what you finished.** If you log a session with the button before crossing everything off, the exercises you skipped are dimmed and marked "Not done", and the count reads like "3 of 4 exercises done".
 - **First-time swipe hints.** The first time you see a workout card or a search result, it slides partway open by itself and back, to show that it can be swiped. Each hint only plays once.
 - **Sliding tab indicator.** A glowing circle moves between the Workout and History tabs when you switch.
+- **The search header gets out of the way.** In the exercise search, the "Add Exercise" title and close button slide away while you scroll down the results, and come back as soon as you scroll up.
 
 ### Changed
 
@@ -24,6 +25,7 @@ What changed in Workout Logbook, newest first.
 
 ### Fixed
 
+- In the exercise search, results scrolled over the top of the panel's header, which made the close button hard to tap.
 - The phone's status bar now matches your color theme right away when the app opens, instead of briefly showing the wrong color.
 - The color theme button in the theme panel did nothing when tapped. It was a duplicate of the one in the top bar and has been removed.
 - Mini body maps on exercise cards now pick the front or back view correctly for neck exercises that also work back muscles.

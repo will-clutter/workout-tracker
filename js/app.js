@@ -512,6 +512,7 @@ function openSheet(id) {
   // The newest sheet sits on top
   sheet.style.zIndex = 30 + openSheets.length;
   sheet.scrollTop = 0;
+  sheet.classList.remove("head-hidden"); // always open with the header showing
   requestAnimationFrame(() => sheet.classList.add("open"));
   $("backdrop").classList.add("show");
   document.body.style.overflow = "hidden";
@@ -533,6 +534,19 @@ function closeSheet(id) {
 $("backdrop").addEventListener("click", () => {
   if (openSheets.length) closeSheet(openSheets[openSheets.length - 1]);
 });
+
+// In the exercise search: hide the header (title + close button) while scrolling
+// down the results, and bring it back as soon as you scroll up
+function autoHideHeader(sheet) {
+  let lastTop = 0;
+  sheet.addEventListener("scroll", () => {
+    const top = sheet.scrollTop;
+    if (Math.abs(top - lastTop) < 6) return; // ignore tiny jitters
+    sheet.classList.toggle("head-hidden", top > lastTop && top > 80); // down, and past the top area
+    lastTop = top;
+  }, { passive: true });
+}
+autoHideHeader($("browserSheet"));
 
 document.querySelectorAll(".close-sheet").forEach(button => {
   button.addEventListener("click", () => closeSheet(button.closest(".sheet").id));

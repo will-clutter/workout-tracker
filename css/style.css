@@ -366,9 +366,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .sheet-head {
   display: flex; align-items: center; justify-content: space-between;
   margin: 0 -16px 12px; padding: 6px 16px;
-  position: sticky; top: -8px; z-index: 1;
+  position: sticky; top: -8px;
+  z-index: 5; /* above the rows scrolling under it (swipe rows sit at z-index 1) */
   background: linear-gradient(var(--glass-strong) 70%, transparent);
+  transition: transform 0.25s var(--ease), opacity 0.2s;
 }
+/* Scrolling down a long list tucks the header away; scrolling up brings it back */
+.sheet.head-hidden .sheet-head { transform: translateY(-110%); opacity: 0; pointer-events: none; }
 .sheet-head h2 { text-transform: uppercase; font-size: 18px; letter-spacing: 1.5px; }
 
 /* ---------- Exercise browser ---------- */
