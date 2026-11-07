@@ -98,6 +98,15 @@ function escapeHtml(text) {
 // Shortcut for document.getElementById
 const $ = id => document.getElementById(id);
 
+// Has the phone/computer asked for less animation? (an accessibility setting)
+const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Small SVG icons (Font Awesome Free) used inside the app's HTML
+const ICONS = {
+  note: `<svg class="icon inline" viewBox="0 0 448 512" role="img" aria-label="Has notes"><path d="M64 480c-35.3 0-64-28.7-64-64L0 96C0 60.7 28.7 32 64 32l320 0c35.3 0 64 28.7 64 64l0 213.5c0 17-6.7 33.3-18.7 45.3L322.7 461.3c-12 12-28.3 18.7-45.3 18.7L64 480zM389.5 304L296 304c-13.3 0-24 10.7-24 24l0 93.5 117.5-117.5z"/></svg>`,
+  trash: `<svg class="icon" viewBox="0 0 448 512" aria-hidden="true"><path d="M136.7 5.9L128 32 32 32C14.3 32 0 46.3 0 64S14.3 96 32 96l384 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0-8.7-26.1C306.9-7.2 294.7-16 280.9-16L167.1-16c-13.8 0-26 8.8-30.4 21.9zM416 144L32 144 53.1 467.1C54.7 492.4 75.7 512 101 512L347 512c25.3 0 46.3-19.6 47.9-44.9L416 144z"/></svg>`
+};
+
 /* ============================================================
    WORKOUT TAB
    ============================================================ */
@@ -107,12 +116,37 @@ function renderWorkout() {
   $("workoutName").textContent = workout.name;
   $("switcherName").textContent = workout.name;
 
-  $("exerciseList").replaceChildren(...workout.items.map(buildExerciseCard));
+  // Still to do (in your order) on top; crossed off below, in the order you finished them
+  const todo = workout.items.filter(i => !i.doneAt);
+  const done = workout.items.filter(i => i.doneAt).sort((a, b) => a.doneAt - b.doneAt);
+  $("exerciseList").replaceChildren(...todo.map(buildExerciseCard));
+  $("completedList").replaceChildren(...done.map(buildExerciseCard));
+  $("exercisesLabel").classList.toggle("hidden", todo.length === 0);
+  $("completedHead").classList.toggle("hidden", done.length === 0);
 
   const empty = workout.items.length === 0;
   $("emptyState").classList.toggle("hidden", !empty);
-  ["exercisesLabel", "logBtn", "summaryMap"].forEach(id => $(id).classList.toggle("hidden", empty));
+  ["logBtn", "summaryMap"].forEach(id => $(id).classList.toggle("hidden", empty));
   renderSummaryMap(workout);
+  hintCrossOff();
+}
+
+// Same as renderWorkout, but cards glide from their old spot to their new one
+// (e.g. down into Completed) instead of jumping there.
+function renderWorkoutAnimated() {
+  const oldTops = new Map([...document.querySelectorAll(".card")].map(c => [c.dataset.uid, c.getBoundingClientRect().top]));
+  renderWorkout();
+  if (prefersReducedMotion()) return;
+
+  const moved = [...document.querySelectorAll(".card")].filter(c => oldTops.has(c.dataset.uid));
+  moved.forEach(card => card.classList.add("settled")); // already on screen, so skip the fade-in
+  moved.forEach(card => {
+    const distance = oldTops.get(card.dataset.uid) - card.getBoundingClientRect().top;
+    if (distance) card.animate(
+      [{ transform: `translateY(${distance}px)` }, { transform: "none" }],
+      { duration: 450, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }
+    );
+  });
 }
 
 // Which cards are expanded (open for editing). Not saved; resets on reload.
@@ -132,7 +166,7 @@ function thumbHtml(ex, size = "") {
 function summaryHtml(item) {
   const parts = [`<b>${escapeHtml(item.sets || "–")}</b> sets`, `<b>${escapeHtml(item.reps || "–")}</b> reps`];
   if (item.weight) parts.push(`<b>${escapeHtml(item.weight)}</b> lb`);
-  return parts.join(" · ") + (item.notes ? " · 📝" : "");
+  return parts.join(" · ") + (item.notes ? ` · ${ICONS.note}` : "");
 }
 
 // One exercise card in the workout
@@ -142,13 +176,14 @@ function buildExerciseCard(item) {
   const isOpen = openCards.has(item.uid);
 
   const li = document.createElement("li");
-  li.className = "card glass" + (isOpen ? " open" : "");
+  // swipe-done = swipe left to cross off; crossed-off cards swipe right to undo
+  li.className = "card glass swipe " + (item.doneAt ? "done swipe-undo" : "swipe-done") + (isOpen ? " open" : "");
   li.dataset.uid = item.uid;
   li.innerHTML = `
     <button class="row" data-action="toggle" aria-expanded="${isOpen}">
       ${thumbHtml(exercise)}
       <span class="row-text">
-        <div class="row-name">${escapeHtml(name)}</div>
+        <div class="row-name"><span>${escapeHtml(name)}</span></div>
         <div class="row-summary">${summaryHtml(item)}</div>
       </span>
       <span class="mini-map">${exercise ? renderMiniMap(exercise.primaryMuscles, exercise.secondaryMuscles) : ""}</span>
@@ -187,8 +222,8 @@ function itemForCard(card) {
   return activeWorkout().items.find(i => i.uid === card.dataset.uid);
 }
 
-// One click handler for every card (this is called "event delegation")
-$("exerciseList").addEventListener("click", event => {
+// One click handler for every card in both lists (this is called "event delegation")
+$("cards").addEventListener("click", event => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const card = button.closest(".card");
@@ -205,7 +240,7 @@ $("exerciseList").addEventListener("click", event => {
 });
 
 // Save whenever you type in sets / reps / weight / notes
-$("exerciseList").addEventListener("input", event => {
+$("cards").addEventListener("input", event => {
   const field = event.target.dataset.field;
   if (!field) return;
   const card = event.target.closest(".card");
@@ -232,6 +267,76 @@ function removeItem(item, card) {
       renderWorkout();
     });
   }, 220);
+}
+
+/* ---------- Crossing off exercises ----------
+   A crossed-off exercise has doneAt = the time you finished it.
+   They reset with the Reset button, or on their own on a later day. */
+
+// Swipe a card left (at least halfway) to cross it off...
+enableSwipe($("exerciseList"), ".card", -1, 0.5, card => setDone(card, true));
+// ...and swipe a crossed-off card right to bring it back
+enableSwipe($("completedList"), ".card", 1, 0.5, card => setDone(card, false));
+
+function setDone(card, isDone) {
+  const item = itemForCard(card);
+  if (!item) return;
+  const workout = activeWorkout();
+  if (isDone) item.doneAt = Date.now(); else delete item.doneAt;
+  saveState();
+
+  // Draw (or erase) the line through the name first, then move the card
+  card.classList.toggle("done", isDone);
+  setTimeout(() => {
+    renderWorkoutAnimated();
+    if (!isDone) return;
+    if (workout.items.every(i => i.doneAt)) {
+      logSession(workout); // everything's crossed off: log it and celebrate
+      celebrate(workout);
+    } else {
+      showToast(`Completed ${getExercise(item.exId)?.name || "exercise"}`, "Undo", () => {
+        delete item.doneAt;
+        saveState();
+        renderWorkoutAnimated();
+      });
+    }
+  }, 400);
+}
+
+$("resetDoneBtn").addEventListener("click", () => {
+  activeWorkout().items.forEach(i => delete i.doneAt);
+  saveState();
+  renderWorkoutAnimated();
+});
+
+// Uncross anything crossed off on an earlier day. Returns true if anything changed.
+function clearOldCrossOffs() {
+  const today = new Date().toDateString();
+  let changed = false;
+  state.workouts.forEach(w => w.items.forEach(i => {
+    if (i.doneAt && new Date(i.doneAt).toDateString() !== today) {
+      delete i.doneAt;
+      changed = true;
+    }
+  }));
+  if (changed) saveState();
+  return changed;
+}
+
+// Phones often keep the app open in the background for days,
+// so check again whenever you come back to it
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && clearOldCrossOffs()) renderWorkout();
+});
+
+// Glow + "Workout complete" message over the screen
+function celebrate(workout) {
+  if (prefersReducedMotion()) return showToast(`Workout complete. Logged ${workout.name}`);
+  $("celebrationName").textContent = `${workout.name} logged to History`;
+  const overlay = $("celebration");
+  overlay.classList.remove("play");
+  void overlay.offsetWidth; // lets the animation restart if it's already showing
+  overlay.classList.add("play");
 }
 
 // Body map for every muscle in the whole workout
@@ -261,22 +366,27 @@ $("renameBtn").addEventListener("click", () => renameWorkout(activeWorkout()));
    LOGGING + HISTORY
    ============================================================ */
 
-$("logBtn").addEventListener("click", () => {
-  const workout = activeWorkout();
-
-  // Save a copy ("snapshot") of the workout as it is right now
+// Save a copy ("snapshot") of the workout as it is right now,
+// including which exercises were crossed off
+function logSession(workout) {
   state.history.unshift({
     id: makeId(),
     date: new Date().toISOString(),
     workoutName: workout.name,
     items: workout.items.map(item => ({
       name: getExercise(item.exId)?.name || "Unknown exercise",
-      sets: item.sets, reps: item.reps, weight: item.weight, notes: item.notes
+      sets: item.sets, reps: item.reps, weight: item.weight, notes: item.notes,
+      done: Boolean(item.doneAt)
     }))
   });
   saveState();
   renderHistory();
-  showToast(`Logged ${workout.name} 💪`);
+}
+
+$("logBtn").addEventListener("click", () => {
+  const workout = activeWorkout();
+  logSession(workout);
+  showToast(`Logged ${workout.name}`);
 });
 
 function renderHistory() {
@@ -286,6 +396,13 @@ function renderHistory() {
     const date = new Date(session.date).toLocaleDateString(undefined, {
       weekday: "short", month: "short", day: "numeric", year: "numeric"
     });
+    // Only mark completed/not completed if you crossed anything off that session
+    // (older sessions, and ones logged without crossing off, show as before)
+    const doneCount = session.items.filter(i => i.done).length;
+    const tracked = doneCount > 0;
+    const count = tracked && doneCount < session.items.length
+      ? `${doneCount} of ${plural(session.items.length, "exercise")} done`
+      : plural(session.items.length, "exercise");
     return `<li>
       <details class="session glass">
         <summary>
@@ -293,11 +410,12 @@ function renderHistory() {
             <div class="date">${escapeHtml(date)}</div>
             <div><b>${escapeHtml(session.workoutName)}</b></div>
           </div>
-          <div class="count">${plural(session.items.length, "exercise")} ▾</div>
+          <div class="count">${count} ▾</div>
         </summary>
         <ul>
           ${session.items.map(i => `
-            <li>
+            <li${tracked && !i.done ? ` class="skipped"` : ""}>
+              ${tracked && !i.done ? `<span class="skipped-label">Not done</span>` : ""}
               <b>${escapeHtml(i.name)}</b> — ${escapeHtml(i.sets || "?")} × ${escapeHtml(i.reps || "?")}${i.weight ? ` @ ${escapeHtml(i.weight)} lbs` : ""}
               ${i.notes ? `<div class="note">${escapeHtml(i.notes)}</div>` : ""}
             </li>`).join("")}
@@ -332,6 +450,7 @@ tabButtons.forEach(button => {
     document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + button.dataset.tab));
     moveTabIndicator(button, true);
     window.scrollTo({ top: 0 });
+    hintCrossOff(); // only does anything on the Workout tab
   });
 });
 
@@ -365,8 +484,7 @@ function moveTabIndicator(button, animate) {
   tabIndicator.style.setProperty("--x", to.x + "px");
   tabIndicator.style.setProperty("--y", to.y + "px");
 
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!animate || reduceMotion) return;
+  if (!animate || prefersReducedMotion()) return;
 
   const at = (p, scale) => `translate(${p.x}px, ${p.y}px) scale(${scale})`;
   tabIndicator.animate([
@@ -406,6 +524,7 @@ function closeSheet(id) {
   if (openSheets.length === 0) {
     $("backdrop").classList.remove("show");
     document.body.style.overflow = "";
+    hintCrossOff(); // e.g. back from adding your first exercises by swiping
   }
   if (id === "formSheet" && formResolve) { formResolve(null); formResolve = null; }
 }
@@ -431,7 +550,8 @@ document.querySelectorAll(".close-sheet").forEach(button => {
   onSwipe(row) runs if you let go past the threshold; otherwise the row snaps back.
 
   Up/down drags are ignored, so the list still scrolls normally.
-  The row's distance is stored in the --swipe CSS variable; style.css moves it.
+  CSS variables tell style.css where to draw the row:
+  --swipe = how far it's moved (negative = left), --swipe-w = the same distance, always positive.
 */
 function enableSwipe(list, rowSelector, direction, threshold, onSwipe) {
   let drag = null;
@@ -439,7 +559,9 @@ function enableSwipe(list, rowSelector, direction, threshold, onSwipe) {
 
   list.addEventListener("pointerdown", event => {
     const row = event.target.closest(rowSelector);
-    if (row && event.button === 0) drag = { row, x: event.clientX, y: event.clientY, distance: 0, active: false };
+    if (!row || event.button !== 0) return;
+    if (event.target.closest("input, textarea")) return; // dragging in a text box selects text instead
+    drag = { row, x: event.clientX, y: event.clientY, distance: 0, active: false };
   });
 
   list.addEventListener("pointermove", event => {
@@ -458,6 +580,7 @@ function enableSwipe(list, rowSelector, direction, threshold, onSwipe) {
 
     drag.distance = Math.max(0, dx * direction); // can't drag the wrong way
     drag.row.style.setProperty("--swipe", drag.distance * direction + "px");
+    drag.row.style.setProperty("--swipe-w", drag.distance + "px");
     drag.row.classList.toggle("swipe-ready", drag.distance > drag.row.offsetWidth * threshold);
   });
 
@@ -470,6 +593,7 @@ function enableSwipe(list, rowSelector, direction, threshold, onSwipe) {
     swipedAt = performance.now();
     row.classList.remove("swiping", "swipe-ready");
     row.style.removeProperty("--swipe"); // snaps back with the CSS transition
+    row.style.removeProperty("--swipe-w");
     // Only a real let-go counts (the browser can cancel a drag, e.g. to scroll)
     if (event.type === "pointerup" && distance > row.offsetWidth * threshold) onSwipe(row);
   };
@@ -480,6 +604,54 @@ function enableSwipe(list, rowSelector, direction, threshold, onSwipe) {
   list.addEventListener("click", event => {
     if (performance.now() - swipedAt < 400) event.stopPropagation();
   }, true);
+}
+
+/* ---------- First-time swipe hints ----------
+   The first time a swipeable row is on screen, it slides partway open by
+   itself and back, to show it can be swiped. Each hint plays once, ever
+   (remembered in state.hintsSeen). */
+
+const hintWaiting = {};
+
+// findRow() returns the row to animate, or nothing if it isn't on screen right now.
+// It's checked again just before playing, in case the list was redrawn meanwhile.
+function showHintOnce(name, findRow, direction) {
+  state.hintsSeen ??= {};
+  if (state.hintsSeen[name] || hintWaiting[name] || prefersReducedMotion() || !findRow()) return;
+  hintWaiting[name] = true;
+  setTimeout(() => {
+    hintWaiting[name] = false;
+    const row = findRow();
+    if (!row) return; // gone now; try again next time
+    state.hintsSeen[name] = true;
+    saveState();
+
+    const set = px => {
+      row.style.setProperty("--swipe", direction * px + "px");
+      row.style.setProperty("--swipe-w", px + "px");
+    };
+    row.classList.add("peek");
+    set(90);                                   // slide partway open...
+    setTimeout(() => set(0), 1000);            // ...hold a moment, then close
+    setTimeout(() => {
+      row.classList.remove("peek");
+      row.style.removeProperty("--swipe");
+      row.style.removeProperty("--swipe-w");
+    }, 1600);
+  }, 700); // wait for the cards / sheet to finish appearing
+}
+
+// Swipe left to cross off: shown on the first exercise card
+function hintCrossOff() {
+  showHintOnce("crossOff", () =>
+    openSheets.length === 0 && $("tab-workout").classList.contains("active") &&
+    $("exerciseList").querySelector(".card"), -1);
+}
+
+// Swipe right to add: shown on the first search result
+function hintAdd() {
+  showHintOnce("add", () =>
+    openSheets.at(-1) === "browserSheet" && $("resultsList").querySelector("li.swipe"), 1);
 }
 
 /* ============================================================
@@ -550,7 +722,7 @@ function renderResults() {
   const inWorkout = new Set(activeWorkout().items.map(i => i.exId));
 
   const header = matches.length
-    ? `<li class="results-count">${plural(matches.length, "exercise")} · swipe → to add</li>`
+    ? `<li class="results-count">${plural(matches.length, "exercise")}</li>`
     : `<li class="empty"><p>No matches.</p><p class="muted">Try another word, or create your own exercise above.</p></li>`;
 
   $("resultsList").innerHTML = header + matches.slice(0, resultsShown).map(ex => `
@@ -566,6 +738,7 @@ function renderResults() {
     </li>`).join("");
 
   $("moreResultsBtn").classList.toggle("hidden", matches.length <= resultsShown);
+  hintAdd();
 }
 
 // Shown on results that are already in the workout
@@ -757,7 +930,7 @@ function renderWorkoutsList() {
         <small>${plural(w.items.length, "exercise")}</small>
       </button>
       <button class="icon-btn" data-action="rename" aria-label="Rename">✎</button>
-      <button class="icon-btn" data-action="delete" aria-label="Delete">🗑</button>
+      <button class="icon-btn" data-action="delete" aria-label="Delete">${ICONS.trash}</button>
     </li>`).join("");
 }
 
@@ -950,6 +1123,7 @@ function showToast(message, actionLabel, onAction) {
    ============================================================ */
 
 async function start() {
+  clearOldCrossOffs(); // a new day: uncross yesterday's exercises
   renderWorkout();
   renderHistory();
   try {

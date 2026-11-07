@@ -327,6 +327,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .session ul { list-style: none; padding: 0 14px 10px; margin: 0; }
 .session li { padding: 8px 0; border-top: 1px solid var(--glass-border); font-size: 15px; }
 .session li .note { color: var(--muted); font-size: 13px; margin-top: 2px; white-space: pre-wrap; }
+/* Exercises you didn't cross off before logging */
+.session li.skipped { opacity: 0.55; }
+.skipped-label { float: right; margin-left: 8px; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
 .session .session-actions { padding: 0 14px 14px; }
 
 /* ---------- Sheets (slide-up panels) ---------- */
@@ -405,22 +408,57 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .results-count { color: var(--muted); font-size: 13px; padding: 4px; }
 
 /* ---------- Swipeable rows (see enableSwipe in app.js) ----------
-   JavaScript sets --swipe to how far the row is dragged. The row slides
-   by that much, and a strip grows behind it to the same width. */
-.swipe { position: relative; overflow: hidden; border-radius: 10px; touch-action: pan-y; -webkit-user-select: none; user-select: none; }
-.swipe > * { transform: translateX(var(--swipe, 0px)); transition: transform 0.3s var(--ease), background 0.15s; }
+   JavaScript sets --swipe to how far the row is dragged (negative = left)
+   and --swipe-w to the same distance as a positive number. The row's
+   contents slide by --swipe, and a strip grows behind them, --swipe-w wide,
+   on the side they're moving away from. */
+.swipe { position: relative; overflow: hidden; touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+.swipe > * {
+  position: relative; z-index: 1; /* above the strip */
+  transform: translateX(var(--swipe, 0px)); transition: transform 0.3s var(--ease), background 0.15s;
+}
 /* While dragging: follow the finger exactly, and skip the shrink-on-press effect */
 .swipe.swiping > * { transform: translateX(var(--swipe, 0px)); transition: none; }
-.swipe::before {
-  position: absolute; top: 0; bottom: 0; left: 0; width: var(--swipe, 0px);
-  display: flex; align-items: center; padding-left: 16px; overflow: hidden; white-space: nowrap;
+.swipe::after {
+  position: absolute; top: 0; bottom: 0; left: 0; width: var(--swipe-w, 0px);
+  /* Padding shrinks with the strip, so at rest it's truly 0 wide (no sliver showing) */
+  box-sizing: border-box; padding-left: min(16px, var(--swipe-w, 0px));
+  display: flex; align-items: center; overflow: hidden; white-space: nowrap;
   font-weight: 700; color: rgba(255, 255, 255, 0.6); background: var(--accent-dark);
   transition: width 0.3s var(--ease), background 0.2s, color 0.2s;
 }
-.swipe.swiping::before { transition: background 0.2s, color 0.2s; }
+.swipe.swiping::after { transition: background 0.2s, color 0.2s; }
 /* Dragged far enough: the strip lights up */
-.swipe.swipe-ready::before { background: var(--accent); color: #fff; box-shadow: inset 0 0 20px var(--accent-glow); }
-.swipe-add::before { content: "＋ Add"; }
+.swipe.swipe-ready::after { background: var(--accent); color: #fff; box-shadow: inset 0 0 20px var(--accent-glow); }
+
+.swipe-add { border-radius: 10px; }
+.swipe-add::after { content: "＋ Add"; }
+.swipe-undo::after { content: "Undo"; }
+/* Swiping left: the strip is on the right */
+.swipe-done::after {
+  content: "✓ Done"; left: auto; right: 0; justify-content: flex-end;
+  padding-left: 0; padding-right: min(16px, var(--swipe-w, 0px));
+}
+/* First-time hint: the row slides partway open by itself, a bit slower */
+.swipe.peek > * { transition: transform 0.5s var(--ease); }
+.swipe.peek::after { transition: width 0.5s var(--ease); }
+.card.swiping::before { opacity: 0; } /* hide the card's accent line while it slides */
+
+/* ---------- Crossed-off exercises ---------- */
+/* The line through the name. It's a background on the name's text, so it
+   draws left to right (line by line on long names) when the card gets .done */
+.row-name span {
+  background: linear-gradient(var(--accent), var(--accent)) no-repeat 0 60% / 0% 2px;
+  transition: background-size 0.35s var(--ease);
+}
+.card.done .row-name span { background-size: 100% 2px; }
+.card .row > * { transition: opacity 0.3s; }
+.card.done .row > * { opacity: 0.5; }
+.card.done::before { opacity: 0.3; }
+/* Cards that were already on screen skip the fade-in when the list is redrawn */
+.card.settled { animation: none; }
+
+.completed-head { display: flex; align-items: center; justify-content: space-between; }
 
 /* ---------- Exercise details ---------- */
 .detail-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -494,11 +532,33 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+/* ---------- Celebration (every exercise crossed off) ----------
+   The screen glows in the theme's accent color and pulses once,
+   with a message in the middle, then fades away. */
+.celebration {
+  position: fixed; inset: 0; z-index: 60; pointer-events: none;
+  display: grid; place-items: center; padding: 24px; text-align: center;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 50% 45%, var(--accent-glow), transparent 65%),
+    rgba(0, 0, 0, 0.35);
+}
+.celebration.play { animation: glow 2.8s var(--ease) both; }
+.celebration.play .celebration-text { animation: rise 2.8s var(--ease) both; }
+.celebration-title {
+  font-family: var(--display); font-size: 34px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 2px; color: #fff;
+  text-shadow: 0 0 24px var(--accent), 0 0 60px var(--accent-glow);
+}
+.celebration-name { margin-top: 8px; color: var(--accent-soft); font-weight: 600; }
+
 /* ---------- Animations ---------- */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes cardIn { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes flash { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 30% { box-shadow: 0 0 0 2px var(--accent), 0 0 30px var(--accent-glow); } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+@keyframes glow { 0% { opacity: 0; } 15% { opacity: 1; } 35% { opacity: 0.7; } 55% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes rise { from { transform: translateY(10px) scale(0.94); } 20% { transform: none; } to { transform: scale(1.03); } }
 @keyframes drift { from { transform: translate(0, 0); } to { transform: translate(3%, -3%); } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -508,3 +568,4 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* SVG icons: take the color of the text around them */
 .icon { width: 22px; height: 22px; fill: currentColor; display: block; }
 .icon-btn .icon { margin: auto; }
+.icon.inline { display: inline-block; width: 13px; height: 13px; vertical-align: -2px; } /* sits in a line of text */
