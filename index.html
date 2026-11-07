@@ -4,21 +4,27 @@
   <meta charset="UTF-8">
   <!-- Makes the page fit phone screens properly -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0a0a0b">
+  <!-- Phone status bar color; set from the theme by applyTheme() below -->
+  <meta name="theme-color" content="">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Workout Logbook</title>
-  <!-- Heading font (Cinzel) from Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&display=swap" rel="stylesheet">
+  <!-- Start downloading the heading font right away (it's set up in style.css) -->
+  <link rel="preload" href="fonts/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/style.css">
-  <!-- Apply the saved color theme right away, so the page doesn't flash the default colors -->
+  <!-- Apply the saved color theme right away, so the page doesn't flash the default colors.
+       app.js also uses applyTheme() when you pick a new theme. -->
   <script>
-    try {
-      const saved = JSON.parse(localStorage.getItem("workout-logbook-v1"));
-      if (saved && saved.theme) document.documentElement.dataset.theme = saved.theme;
-    } catch (e) {}
+    function applyTheme(themeId) {
+      const root = document.documentElement;
+      root.dataset.theme = themeId;
+      // Match the phone's status bar to the theme's background color from style.css
+      document.querySelector('meta[name="theme-color"]').content =
+        getComputedStyle(root).getPropertyValue("--bg").trim();
+    }
+    let savedTheme;
+    try { savedTheme = JSON.parse(localStorage.getItem("workout-logbook-v1")).theme; } catch (e) {}
+    applyTheme(savedTheme || "crimson");
   </script>
 </head>
 <body>

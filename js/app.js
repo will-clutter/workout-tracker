@@ -731,29 +731,24 @@ async function renameWorkout(workout) {
 
 /* ============================================================
    COLOR THEMES
-   The colors themselves live in css/style.css. To add a theme,
-   add a [data-theme="..."] block there and an entry here.
+   The colors live only in css/style.css. To add a theme, add a
+   [data-theme="..."] block there and its name here.
+   applyTheme() is in index.html, so the theme is set before the page draws.
    ============================================================ */
 
 const THEMES = [
-  { id: "crimson", name: "Crimson", colors: ["#08070a", "#ff2a44", "#8a1426"] },
-  { id: "violet",  name: "Violet",  colors: ["#0d0a16", "#b388ff", "#5b3a99"] },
-  { id: "frost",   name: "Frost",   colors: ["#060b14", "#4cc3ff", "#1f5f8f"] },
-  { id: "emerald", name: "Emerald", colors: ["#050b09", "#2ee59d", "#146b4b"] }
+  { id: "crimson", name: "Crimson" },
+  { id: "violet",  name: "Violet" },
+  { id: "frost",   name: "Frost" },
+  { id: "emerald", name: "Emerald" }
 ];
 
-function applyTheme(themeId) {
-  document.documentElement.dataset.theme = themeId;
-  // Also color the phone's status bar area to match
-  const bg = THEMES.find(t => t.id === themeId)?.colors[0];
-  if (bg) document.querySelector('meta[name="theme-color"]').content = bg;
-}
-
 function renderThemeSwatches() {
-  const current = state.theme || "crimson";
+  const current = document.documentElement.dataset.theme;
+  // data-theme on the color dots makes them use that theme's colors from style.css
   $("themeSwatches").innerHTML = THEMES.map(t => `
     <button class="swatch ${t.id === current ? "on" : ""}" data-theme-id="${t.id}">
-      <div class="swatch-colors">${t.colors.map(c => `<i style="background:${c}"></i>`).join("")}</div>
+      <div class="swatch-colors" data-theme="${t.id}"><i></i><i></i><i></i></div>
       <div class="swatch-name">${t.name}</div>
     </button>`).join("");
 }
@@ -868,7 +863,6 @@ function showToast(message, actionLabel, onAction) {
    ============================================================ */
 
 async function start() {
-  applyTheme(state.theme || "crimson");
   renderWorkout();
   renderHistory();
   try {
