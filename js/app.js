@@ -69,6 +69,15 @@ function activeWorkout() {
   return state.workouts.find(w => w.id === state.activeWorkoutId) || state.workouts[0];
 }
 
+function isInWorkout(exId) {
+  return activeWorkout().items.some(i => i.exId === exId);
+}
+
+// A fresh workout entry for an exercise, with the default sets/reps
+function newItem(ex) {
+  return { uid: makeId(), exId: ex.id, sets: DEFAULT_SETS, reps: DEFAULT_REPS, weight: "", notes: "" };
+}
+
 // Look up an exercise by id, in the database or your custom ones
 function getExercise(exId) {
   return databaseById[exId] || state.customExercises.find(e => e.id === exId);
@@ -411,6 +420,69 @@ document.querySelectorAll(".close-sheet").forEach(button => {
 });
 
 /* ============================================================
+   SWIPE GESTURE (shared by any list with swipeable rows)
+   ============================================================ */
+
+/*
+  Lets you drag rows in `list` sideways.
+  rowSelector = which rows can be swiped
+  direction   = 1 for right, -1 for left
+  threshold   = how far to drag to count, as a share of the row's width (0.5 = half)
+  onSwipe(row) runs if you let go past the threshold; otherwise the row snaps back.
+
+  Up/down drags are ignored, so the list still scrolls normally.
+  The row's distance is stored in the --swipe CSS variable; style.css moves it.
+*/
+function enableSwipe(list, rowSelector, direction, threshold, onSwipe) {
+  let drag = null;
+  let swipedAt = 0;
+
+  list.addEventListener("pointerdown", event => {
+    const row = event.target.closest(rowSelector);
+    if (row && event.button === 0) drag = { row, x: event.clientX, y: event.clientY, distance: 0, active: false };
+  });
+
+  list.addEventListener("pointermove", event => {
+    if (!drag) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+
+    // Wait until it's clear whether this is a sideways swipe or a scroll
+    if (!drag.active) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { drag = null; return; } // scrolling
+      if (Math.abs(dx) < 10) return;
+      drag.active = true;
+      drag.row.setPointerCapture(event.pointerId); // keep getting moves even off the row
+      drag.row.classList.add("swiping");
+    }
+
+    drag.distance = Math.max(0, dx * direction); // can't drag the wrong way
+    drag.row.style.setProperty("--swipe", drag.distance * direction + "px");
+    drag.row.classList.toggle("swipe-ready", drag.distance > drag.row.offsetWidth * threshold);
+  });
+
+  const endDrag = event => {
+    if (!drag) return;
+    const { row, active, distance } = drag;
+    drag = null;
+    if (!active) return; // it was a tap; let the click through
+
+    swipedAt = performance.now();
+    row.classList.remove("swiping", "swipe-ready");
+    row.style.removeProperty("--swipe"); // snaps back with the CSS transition
+    // Only a real let-go counts (the browser can cancel a drag, e.g. to scroll)
+    if (event.type === "pointerup" && distance > row.offsetWidth * threshold) onSwipe(row);
+  };
+  list.addEventListener("pointerup", endDrag);
+  list.addEventListener("pointercancel", endDrag);
+
+  // Letting go after a swipe also fires a click; swallow it so the row doesn't open too
+  list.addEventListener("click", event => {
+    if (performance.now() - swipedAt < 400) event.stopPropagation();
+  }, true);
+}
+
+/* ============================================================
    EXERCISE BROWSER
    ============================================================ */
 
@@ -478,27 +550,43 @@ function renderResults() {
   const inWorkout = new Set(activeWorkout().items.map(i => i.exId));
 
   const header = matches.length
-    ? `<li class="results-count">${plural(matches.length, "exercise")}</li>`
+    ? `<li class="results-count">${plural(matches.length, "exercise")} · swipe → to add</li>`
     : `<li class="empty"><p>No matches.</p><p class="muted">Try another word, or create your own exercise above.</p></li>`;
 
   $("resultsList").innerHTML = header + matches.slice(0, resultsShown).map(ex => `
-    <li>
+    <li class="swipe swipe-add">
       <button class="result" data-id="${escapeHtml(ex.id)}">
         ${thumbHtml(ex, "small")}
         <span class="result-text">
           <div class="result-name">${escapeHtml(ex.name)}</div>
           <div class="result-meta">${escapeHtml(ex.primaryMuscles.join(", "))}${ex.equipment ? " · " + escapeHtml(ex.equipment) : ""}${ex.custom ? " · custom" : ""}</div>
         </span>
-        ${inWorkout.has(ex.id) ? `<span class="result-dot" title="In this workout"></span>` : `<span class="result-add">›</span>`}
+        ${inWorkout.has(ex.id) ? IN_WORKOUT_DOT : `<span class="result-add">›</span>`}
       </button>
     </li>`).join("");
 
   $("moreResultsBtn").classList.toggle("hidden", matches.length <= resultsShown);
 }
 
+// Shown on results that are already in the workout
+const IN_WORKOUT_DOT = `<span class="result-dot" title="In this workout"></span>`;
+
 $("resultsList").addEventListener("click", event => {
   const result = event.target.closest(".result");
   if (result) openDetail(result.dataset.id);
+});
+
+// Swipe a result right (at least halfway) to add it without opening it
+enableSwipe($("resultsList"), "li.swipe", 1, 0.5, row => {
+  const result = row.querySelector(".result");
+  const ex = getExercise(result.dataset.id);
+  if (isInWorkout(ex.id)) return showToast("Already in your workout");
+
+  activeWorkout().items.push(newItem(ex)); // card starts closed, so quick adds don't pile up open
+  saveState();
+  renderWorkout();
+  result.querySelector(".result-add").outerHTML = IN_WORKOUT_DOT; // update just this row
+  showToast(`Added ${ex.name}`);
 });
 
 /* ============================================================
@@ -509,7 +597,7 @@ function openDetail(exId, { inWorkout = false } = {}) {
   const ex = getExercise(exId);
   if (!ex) return;
   const workout = activeWorkout();
-  const alreadyAdded = workout.items.some(i => i.exId === exId);
+  const alreadyAdded = isInWorkout(exId);
 
   $("detailName").textContent = ex.name;
 
@@ -585,9 +673,8 @@ async function showSteps(exId) {
 }
 
 function addToWorkout(ex, button) {
-  const workout = activeWorkout();
-  const item = { uid: makeId(), exId: ex.id, sets: DEFAULT_SETS, reps: DEFAULT_REPS, weight: "", notes: "" };
-  workout.items.push(item);
+  const item = newItem(ex);
+  activeWorkout().items.push(item);
   openCards.add(item.uid); // open the new card so you can fill in weight right away
   saveState();
 
