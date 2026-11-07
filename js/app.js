@@ -71,7 +71,12 @@ function activeWorkout() {
 
 // Look up an exercise by id, in the database or your custom ones
 function getExercise(exId) {
-  return databaseById[exId] || state.customExercises.find(e => e.id === exId) || null;
+  return databaseById[exId] || state.customExercises.find(e => e.id === exId);
+}
+
+// "1 exercise", "3 exercises"
+function plural(count, word) {
+  return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
 // Makes user-typed text safe to put inside HTML
@@ -93,14 +98,12 @@ function renderWorkout() {
   $("workoutName").textContent = workout.name;
   $("switcherName").textContent = workout.name;
 
-  const list = $("exerciseList");
-  list.innerHTML = "";
-  workout.items.forEach(item => list.appendChild(buildExerciseCard(item)));
+  $("exerciseList").replaceChildren(...workout.items.map(buildExerciseCard));
 
-  $("emptyState").classList.toggle("hidden", workout.items.length > 0);
-  $("exercisesLabel").classList.toggle("hidden", workout.items.length === 0);
-  $("logBtn").classList.toggle("hidden", workout.items.length === 0);
-  renderSummaryMap();
+  const empty = workout.items.length === 0;
+  $("emptyState").classList.toggle("hidden", !empty);
+  ["exercisesLabel", "logBtn", "summaryMap"].forEach(id => $(id).classList.toggle("hidden", empty));
+  renderSummaryMap(workout);
 }
 
 // Which cards are expanded (open for editing). Not saved; resets on reload.
@@ -111,11 +114,10 @@ const openCards = new Set();
 function thumbHtml(ex, size = "") {
   const photo = ex && ex.images && ex.images[0];
   const letter = escapeHtml((ex?.name || "?").charAt(0).toUpperCase());
-  if (!photo) return `<span class="thumb ${size}">${letter}</span>`;
-  return `<span class="thumb ${size}">
-    <img src="${THUMB_DIR + encodeURIComponent(ex.id)}.webp" alt="" loading="lazy"
-         onerror="this.parentElement.textContent='${letter}'">
-  </span>`;
+  const inner = photo
+    ? `<img src="${THUMB_DIR + encodeURIComponent(ex.id)}.webp" alt="" loading="lazy" onerror="this.parentElement.textContent='${letter}'">`
+    : letter;
+  return `<span class="thumb ${size}">${inner}</span>`;
 }
 
 // "3 sets · 10 reps · 60 lb"
@@ -128,7 +130,7 @@ function summaryHtml(item) {
 // One exercise card in the workout
 function buildExerciseCard(item) {
   const exercise = getExercise(item.exId);
-  const name = exercise ? exercise.name : item.name || "Unknown exercise";
+  const name = exercise ? exercise.name : "Unknown exercise";
   const isOpen = openCards.has(item.uid);
 
   const li = document.createElement("li");
@@ -172,12 +174,17 @@ function buildExerciseCard(item) {
   return li;
 }
 
+// The saved item that a card on screen belongs to
+function itemForCard(card) {
+  return activeWorkout().items.find(i => i.uid === card.dataset.uid);
+}
+
 // One click handler for every card (this is called "event delegation")
 $("exerciseList").addEventListener("click", event => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const card = button.closest(".card");
-  const item = activeWorkout().items.find(i => i.uid === card.dataset.uid);
+  const item = itemForCard(card);
   if (!item) return;
 
   if (button.dataset.action === "toggle") {
@@ -194,7 +201,7 @@ $("exerciseList").addEventListener("input", event => {
   const field = event.target.dataset.field;
   if (!field) return;
   const card = event.target.closest(".card");
-  const item = activeWorkout().items.find(i => i.uid === card.dataset.uid);
+  const item = itemForCard(card);
   if (!item) return;
   item[field] = event.target.value;
   saveState();
@@ -220,17 +227,16 @@ function removeItem(item, card) {
 }
 
 // Body map for every muscle in the whole workout
-function renderSummaryMap() {
+function renderSummaryMap(workout) {
   const primary = new Set();
   const secondary = new Set();
-  activeWorkout().items.forEach(item => {
+  workout.items.forEach(item => {
     const ex = getExercise(item.exId);
     if (!ex) return;
     ex.primaryMuscles.forEach(m => primary.add(m));
     ex.secondaryMuscles.forEach(m => secondary.add(m));
   });
   primary.forEach(m => secondary.delete(m)); // primary wins if a muscle is in both
-  $("summaryMap").classList.toggle("hidden", activeWorkout().items.length === 0);
   $("summaryMapBody").innerHTML = renderBodyMap([...primary], [...secondary]) + legendHtml();
 }
 
@@ -249,7 +255,6 @@ $("renameBtn").addEventListener("click", () => renameWorkout(activeWorkout()));
 
 $("logBtn").addEventListener("click", () => {
   const workout = activeWorkout();
-  if (workout.items.length === 0) return;
 
   // Save a copy ("snapshot") of the workout as it is right now
   state.history.unshift({
@@ -267,23 +272,20 @@ $("logBtn").addEventListener("click", () => {
 });
 
 function renderHistory() {
-  const list = $("historyList");
-  list.innerHTML = "";
   $("historyEmpty").classList.toggle("hidden", state.history.length > 0);
 
-  state.history.forEach(session => {
+  $("historyList").innerHTML = state.history.map(session => {
     const date = new Date(session.date).toLocaleDateString(undefined, {
       weekday: "short", month: "short", day: "numeric", year: "numeric"
     });
-    const li = document.createElement("li");
-    li.innerHTML = `
+    return `<li>
       <details class="session glass">
         <summary>
           <div>
             <div class="date">${escapeHtml(date)}</div>
             <div><b>${escapeHtml(session.workoutName)}</b></div>
           </div>
-          <div class="count">${session.items.length} exercise${session.items.length === 1 ? "" : "s"} ▾</div>
+          <div class="count">${plural(session.items.length, "exercise")} ▾</div>
         </summary>
         <ul>
           ${session.items.map(i => `
@@ -295,9 +297,9 @@ function renderHistory() {
         <div class="session-actions">
           <button class="btn danger small" data-delete="${session.id}">Delete session</button>
         </div>
-      </details>`;
-    list.appendChild(li);
-  });
+      </details>
+    </li>`;
+  }).join("");
 }
 
 $("historyList").addEventListener("click", async event => {
@@ -314,10 +316,11 @@ $("historyList").addEventListener("click", async event => {
    TABS (Workout / History)
    ============================================================ */
 
-document.querySelectorAll(".tab-btn").forEach(button => {
+const tabButtons = document.querySelectorAll(".tab-btn");
+tabButtons.forEach(button => {
   button.addEventListener("click", () => {
     if (button.classList.contains("active")) return; // already on this tab
-    document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === button));
+    tabButtons.forEach(b => b.classList.toggle("active", b === button));
     document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + button.dataset.tab));
     moveTabIndicator(button, true);
     window.scrollTo({ top: 0 });
@@ -367,8 +370,9 @@ function moveTabIndicator(button, animate) {
 }
 
 // Put the circle in place when the app opens, and keep it there if the window resizes
-requestAnimationFrame(() => moveTabIndicator(document.querySelector(".tab-btn.active"), false));
-window.addEventListener("resize", () => moveTabIndicator(document.querySelector(".tab-btn.active"), false));
+const placeTabIndicator = () => moveTabIndicator(document.querySelector(".tab-btn.active"), false);
+requestAnimationFrame(placeTabIndicator);
+window.addEventListener("resize", placeTabIndicator);
 
 /* ============================================================
    SHEETS (the panels that slide up)
@@ -436,52 +440,50 @@ $("muscleChips").addEventListener("click", event => {
   if (!chip) return;
   filters.muscle = chip.dataset.muscle;
   $("muscleChips").querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c === chip));
-  resultsShown = RESULTS_PAGE_SIZE;
-  renderResults();
+  renderFirstPage();
 });
 
 $("equipmentSelect").addEventListener("change", event => {
   filters.equipment = event.target.value;
-  resultsShown = RESULTS_PAGE_SIZE;
-  renderResults();
+  renderFirstPage();
 });
 
 $("searchInput").addEventListener("input", event => {
   filters.search = event.target.value.trim().toLowerCase();
+  renderFirstPage();
+});
+
+// A filter changed: go back to showing just the first page of results
+function renderFirstPage() {
   resultsShown = RESULTS_PAGE_SIZE;
   renderResults();
-});
+}
 
 $("moreResultsBtn").addEventListener("click", () => {
   resultsShown += RESULTS_PAGE_SIZE;
   renderResults();
 });
 
-// Does this exercise match the current search + filters?
-function matchesFilters(ex) {
+// Does this exercise match the current filters?
+// words = the search split into words; every one has to appear in the name.
+function matchesFilters(ex, words) {
   if (filters.muscle && !ex.primaryMuscles.includes(filters.muscle) && !ex.secondaryMuscles.includes(filters.muscle)) return false;
   if (filters.equipment && ex.equipment !== filters.equipment) return false;
-  if (filters.search) {
-    // Every word you type has to appear somewhere in the name
-    const name = ex.name.toLowerCase();
-    return filters.search.split(/\s+/).every(word => name.includes(word));
-  }
-  return true;
+  const name = ex.name.toLowerCase();
+  return words.every(word => name.includes(word));
 }
 
 function renderResults() {
-  const all = [...state.customExercises, ...database];
-  const matches = all.filter(matchesFilters);
+  const words = filters.search ? filters.search.split(/\s+/) : []; // split once, not once per exercise
+  const matches = [...state.customExercises, ...database].filter(ex => matchesFilters(ex, words));
   const inWorkout = new Set(activeWorkout().items.map(i => i.exId));
 
-  const list = $("resultsList");
-  list.innerHTML = matches.length
-    ? `<li class="results-count">${matches.length} exercise${matches.length === 1 ? "" : "s"}</li>`
+  const header = matches.length
+    ? `<li class="results-count">${plural(matches.length, "exercise")}</li>`
     : `<li class="empty"><p>No matches.</p><p class="muted">Try another word, or create your own exercise above.</p></li>`;
 
-  matches.slice(0, resultsShown).forEach(ex => {
-    const li = document.createElement("li");
-    li.innerHTML = `
+  $("resultsList").innerHTML = header + matches.slice(0, resultsShown).map(ex => `
+    <li>
       <button class="result" data-id="${escapeHtml(ex.id)}">
         ${thumbHtml(ex, "small")}
         <span class="result-text">
@@ -489,9 +491,8 @@ function renderResults() {
           <div class="result-meta">${escapeHtml(ex.primaryMuscles.join(", "))}${ex.equipment ? " · " + escapeHtml(ex.equipment) : ""}${ex.custom ? " · custom" : ""}</div>
         </span>
         ${inWorkout.has(ex.id) ? `<span class="result-dot" title="In this workout"></span>` : `<span class="result-add">›</span>`}
-      </button>`;
-    list.appendChild(li);
-  });
+      </button>
+    </li>`).join("");
 
   $("moreResultsBtn").classList.toggle("hidden", matches.length <= resultsShown);
 }
@@ -520,7 +521,7 @@ function openDetail(exId, { inWorkout = false } = {}) {
     ex.level ? `<span class="tag">${escapeHtml(ex.level)}</span>` : ""
   ].join("");
 
-  const photos = (ex.images || []).map((src, i) =>
+  const photos = (ex.images || []).map((_, i) =>
     `<img src="${PHOTO_DIR + encodeURIComponent(ex.id)}_${i}.webp" alt="${escapeHtml(ex.name)} demonstration" loading="lazy" onerror="this.remove()">`
   ).join("");
 
@@ -547,12 +548,10 @@ function openDetail(exId, { inWorkout = false } = {}) {
     <div class="detail-actions">${actionButton}</div>
   `;
 
-  const addBtn = $("addToWorkoutBtn");
-  if (addBtn) addBtn.addEventListener("click", () => addToWorkout(ex, addBtn));
-  const closeBtn = $("detailBody").querySelector("[data-close]");
-  if (closeBtn) closeBtn.addEventListener("click", () => closeSheet("detailSheet"));
-  const delBtn = $("deleteCustomBtn");
-  if (delBtn) delBtn.addEventListener("click", () => deleteCustomExercise(ex));
+  // These buttons only exist sometimes; ?. skips the ones that aren't there
+  $("addToWorkoutBtn")?.addEventListener("click", event => addToWorkout(ex, event.currentTarget));
+  $("detailBody").querySelector("[data-close]")?.addEventListener("click", () => closeSheet("detailSheet"));
+  $("deleteCustomBtn")?.addEventListener("click", () => deleteCustomExercise(ex));
 
   openSheet("detailSheet");
 }
@@ -642,7 +641,7 @@ function renderWorkoutsList() {
     <li class="${w.id === state.activeWorkoutId ? "current" : ""}" data-id="${w.id}">
       <button class="pick" data-action="pick">
         ${escapeHtml(w.name)}
-        <small>${w.items.length} exercise${w.items.length === 1 ? "" : "s"}</small>
+        <small>${plural(w.items.length, "exercise")}</small>
       </button>
       <button class="icon-btn" data-action="rename" aria-label="Rename">✎</button>
       <button class="icon-btn" data-action="delete" aria-label="Delete">🗑</button>
@@ -812,8 +811,7 @@ function showForm({ title, fields = [], submitLabel = "Save", musclePicker = fal
 
 // "Are you sure?" question. Returns true or false.
 async function confirmDialog(title, message, confirmLabel) {
-  const result = await showForm({ title, message, submitLabel: confirmLabel, danger: true });
-  return result !== null;
+  return (await showForm({ title, message, submitLabel: confirmLabel, danger: true })) !== null;
 }
 
 /* ============================================================
@@ -824,7 +822,7 @@ let toastTimer;
 function showToast(message, actionLabel, onAction) {
   const toast = $("toast");
   toast.innerHTML = escapeHtml(message);
-  toast.style.pointerEvents = "none";
+  toast.style.pointerEvents = actionLabel ? "auto" : "none"; // only clickable when it has a button
 
   if (actionLabel) {
     const btn = document.createElement("button");
@@ -832,7 +830,6 @@ function showToast(message, actionLabel, onAction) {
     btn.style.cssText = "margin-left:12px;background:none;border:none;color:var(--accent-dark);font-weight:800;padding:0";
     btn.onclick = () => { onAction(); toast.classList.remove("show"); };
     toast.appendChild(btn);
-    toast.style.pointerEvents = "auto";
   }
 
   toast.classList.add("show");
