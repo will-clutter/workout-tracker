@@ -112,9 +112,8 @@ const openCards = new Set();
 // Small square picture for an exercise. Uses its first photo, or the
 // first letter of its name if it has no photos (like custom exercises).
 function thumbHtml(ex, size = "") {
-  const photo = ex && ex.images && ex.images[0];
   const letter = escapeHtml((ex?.name || "?").charAt(0).toUpperCase());
-  const inner = photo
+  const inner = ex?.photos
     ? `<img src="${THUMB_DIR + encodeURIComponent(ex.id)}.webp" alt="" loading="lazy" onerror="this.parentElement.textContent='${letter}'">`
     : letter;
   return `<span class="thumb ${size}">${inner}</span>`;
@@ -521,7 +520,8 @@ function openDetail(exId, { inWorkout = false } = {}) {
     ex.level ? `<span class="tag">${escapeHtml(ex.level)}</span>` : ""
   ].join("");
 
-  const photos = (ex.images || []).map((_, i) =>
+  // ex.photos = how many photos it has (missing = none)
+  const photos = Array.from({ length: ex.photos || 0 }, (_, i) =>
     `<img src="${PHOTO_DIR + encodeURIComponent(ex.id)}_${i}.webp" alt="${escapeHtml(ex.name)} demonstration" loading="lazy" onerror="this.remove()">`
   ).join("");
 
@@ -603,7 +603,6 @@ $("customBtn").addEventListener("click", async () => {
     primaryMuscles: result.primary,
     secondaryMuscles: result.secondary,
     instructions: [],
-    images: [],
     custom: true
   };
   state.customExercises.push(ex);
