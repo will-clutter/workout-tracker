@@ -201,17 +201,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   transform: translate(var(--x, -100px), var(--y, 0px));
   pointer-events: none;
 }
-/* The glowing circle behind the selected tab's icon.
-   JavaScript sets --x and --y to the middle of the selected icon. */
-.tab-indicator {
-  position: absolute; left: 0; top: 0; z-index: 0;
-  width: 34px; height: 34px; margin: -17px 0 0 -17px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 18px var(--accent-glow);
-  transform: translate(var(--x, -100px), var(--y, 0px));
-  pointer-events: none;
-}
+
 /* ---------- Workout page ---------- */
 .workout-title-row { display: flex; align-items: center; gap: 4px; margin-top: 10px; }
 .workout-title-row h1 {
