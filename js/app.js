@@ -364,7 +364,7 @@ function moveTabIndicator(button, animate) {
     { transform: at(to, 0),    offset: 0.42, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }, // jump while invisible
     { transform: at(to, 1.15), offset: 0.85 },                             // grow, slightly too big
     { transform: at(to, 1) }                                               // settle
-  ], { duration: 520 });
+  ], { duration: 900 });
 }
 
 // Put the circle in place when the app opens, and keep it there if the window resizes
