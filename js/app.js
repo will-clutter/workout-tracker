@@ -15,7 +15,7 @@ const STORAGE_KEY = "workout-logbook-v1";
 // can't block them and they load fast. thumbs = small squares, photos = bigger.
 const THUMB_DIR = "images/thumbs/";
 const PHOTO_DIR = "images/photos/";
-const RESULTS_PAGE_SIZE = 50;
+const RESULTS_PAGE_SIZE = 10;
 const DEFAULT_SETS = "3";
 const DEFAULT_REPS = "10";
 
