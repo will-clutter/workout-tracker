@@ -178,14 +178,40 @@ button { font: inherit; color: inherit; cursor: pointer; }
   border-radius: 18px;
 }
 .tab-btn {
+  position: relative; z-index: 1; /* sit above the circle */
   flex: 1; border: none; background: none; border-radius: 14px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  font-size: 18px; color: var(--muted); filter: grayscale(1); opacity: 0.6;
-  transition: opacity 0.2s, color 0.2s, background 0.3s;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  color: var(--muted); opacity: 0.6;
+  transition: opacity 0.25s, color 0.25s;
 }
 .tab-btn span { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
-.tab-btn.active { color: var(--accent); filter: none; opacity: 1; background: rgba(255,255,255,0.06); }
+.tab-btn .icon { transition: transform 0.35s var(--ease); }
+/* The newly selected tab colors in a moment later, as the circle grows behind it */
+.tab-btn.active { color: var(--accent); opacity: 1; transition: opacity 0.3s 0.2s, color 0.3s 0.2s; }
+.tab-btn.active .icon { transform: scale(1.1); transition-delay: 0.2s; }
 
+/* The glowing circle behind the selected tab's icon.
+   JavaScript sets --x and --y to the middle of the selected icon. */
+.tab-indicator {
+  position: absolute; left: 0; top: 0; z-index: 0;
+  width: 34px; height: 34px; margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 18px var(--accent-glow);
+  transform: translate(var(--x, -100px), var(--y, 0px));
+  pointer-events: none;
+}
+/* The glowing circle behind the selected tab's icon.
+   JavaScript sets --x and --y to the middle of the selected icon. */
+.tab-indicator {
+  position: absolute; left: 0; top: 0; z-index: 0;
+  width: 34px; height: 34px; margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 18px var(--accent-glow);
+  transform: translate(var(--x, -100px), var(--y, 0px));
+  pointer-events: none;
+}
 /* ---------- Workout page ---------- */
 .workout-title-row { display: flex; align-items: center; gap: 4px; margin-top: 10px; }
 .workout-title-row h1 {
