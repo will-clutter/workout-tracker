@@ -316,11 +316,60 @@ $("historyList").addEventListener("click", async event => {
 
 document.querySelectorAll(".tab-btn").forEach(button => {
   button.addEventListener("click", () => {
+    if (button.classList.contains("active")) return; // already on this tab
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === button));
     document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + button.dataset.tab));
+    moveTabIndicator(button, true);
     window.scrollTo({ top: 0 });
   });
 });
+
+/* ---------- The circle behind the selected tab ---------- */
+
+const tabIndicator = $("tabIndicator");
+let indicatorPos = null; // where the circle is now
+
+// Middle of a tab's icon, measured from the tab bar's top-left corner
+function iconCenter(button) {
+  const bar = tabIndicator.parentElement;
+  const barBox = bar.getBoundingClientRect();
+  const iconBox = button.querySelector(".icon").getBoundingClientRect();
+  return {
+    x: iconBox.left + iconBox.width / 2 - barBox.left - bar.clientLeft,
+    y: iconBox.top + iconBox.height / 2 - barBox.top - bar.clientTop
+  };
+}
+
+/*
+  Moves the circle to a tab. With animate = true it:
+  shrinks to nothing on the old tab → jumps → grows on the new tab
+  (with a tiny overshoot so it feels springy).
+*/
+function moveTabIndicator(button, animate) {
+  const to = iconCenter(button);
+  const from = indicatorPos || to;
+  indicatorPos = to;
+
+  // Final resting spot (used once the animation ends)
+  tabIndicator.style.setProperty("--x", to.x + "px");
+  tabIndicator.style.setProperty("--y", to.y + "px");
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!animate || reduceMotion) return;
+
+  const at = (p, scale) => `translate(${p.x}px, ${p.y}px) scale(${scale})`;
+  tabIndicator.animate([
+    { transform: at(from, 1),  easing: "cubic-bezier(0.5, 0, 0.75, 0)" }, // start shrinking
+    { transform: at(from, 0),  offset: 0.4 },                              // gone
+    { transform: at(to, 0),    offset: 0.42, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }, // jump while invisible
+    { transform: at(to, 1.15), offset: 0.85 },                             // grow, slightly too big
+    { transform: at(to, 1) }                                               // settle
+  ], { duration: 520 });
+}
+
+// Put the circle in place when the app opens, and keep it there if the window resizes
+requestAnimationFrame(() => moveTabIndicator(document.querySelector(".tab-btn.active"), false));
+window.addEventListener("resize", () => moveTabIndicator(document.querySelector(".tab-btn.active"), false));
 
 /* ============================================================
    SHEETS (the panels that slide up)
