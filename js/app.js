@@ -363,7 +363,7 @@ function moveTabIndicator(button, animate) {
     { transform: at(from, 0), offset: 0.3 },
     { transform: at(to, 0),   offset: 0.32, easing: "cubic-bezier(0.34, 1.3, 0.64, 1)" }, // grow with a soft bounce
     { transform: at(to, 1) }
-  ], { duration: 900 });
+  ], { duration: 700 });
 }
 
 // Put the circle in place when the app opens, and keep it there if the window resizes
