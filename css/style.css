@@ -187,8 +187,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .tab-btn span { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
 .tab-btn .icon { transition: transform 0.35s var(--ease); }
 /* The newly selected tab colors in a moment later, as the circle grows behind it */
-.tab-btn.active { color: var(--accent); opacity: 1; transition: opacity 0.45s 0.38s, color 0.45s 0.38s; }
-.tab-btn.active .icon { transform: scale(1.1); transition-delay: 0.48s; }
+.tab-btn.active { color: var(--accent); opacity: 1; transition: opacity 0.6s 0.38s, color 0.6s 0.38s; }
+.tab-btn.active .icon { transform: scale(1.1); transition: transform 0.6s 0.38s var(--ease); }
 
 /* The glowing circle behind the selected tab's icon.
    JavaScript sets --x and --y to the middle of the selected icon. */

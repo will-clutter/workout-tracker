@@ -359,11 +359,10 @@ function moveTabIndicator(button, animate) {
 
   const at = (p, scale) => `translate(${p.x}px, ${p.y}px) scale(${scale})`;
   tabIndicator.animate([
-    { transform: at(from, 1),  easing: "cubic-bezier(0.5, 0, 0.75, 0)" }, // start shrinking
-    { transform: at(from, 0),  offset: 0.4 },                              // gone
-    { transform: at(to, 0),    offset: 0.42, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }, // jump while invisible
-    { transform: at(to, 1.15), offset: 0.85 },                             // grow, slightly too big
-    { transform: at(to, 1) }                                               // settle
+    { transform: at(from, 1), easing: "cubic-bezier(0.55, 0, 1, 0.45)" },  // shrink (quick)
+    { transform: at(from, 0), offset: 0.3 },
+    { transform: at(to, 0),   offset: 0.32, easing: "cubic-bezier(0.34, 1.3, 0.64, 1)" }, // grow with a soft bounce
+    { transform: at(to, 1) }
   ], { duration: 1200 });
 }
 
