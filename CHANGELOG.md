@@ -11,6 +11,7 @@ What changed in Workout Logbook, newest first.
 - Added `CLAUDE.md` with notes on how the tests are set up.
 - **Added 18 more tests** for how the app handles your data: reading saved data (and starting fresh if it's missing or broken), finding the workout on screen, finding an exercise, saving a session to History with what was and wasn't done, and un-crossing exercises from an earlier day. The logic behind these moved into `js/logic.js`, and the app works the same.
 - **Added 16 more tests** for the exercise search (search words, muscle and equipment filters, and all of them together) and for the small body maps on exercise cards (whether they show the front or back, and whether they zoom in on the upper body, the legs or the whole body). That brings the total to 44.
+- **Cardio exercises are marked again.** The 14 cardio exercises in the database (treadmill, bikes, elliptical, rower, Stairmaster, step mill, rope jumping, skating, trail running, prowler sprint) are tagged as cardio again, to get ready for a cardio tab. Nothing in the app looks different yet. Three new tests check the tag, including one that fails if it's ever removed by accident.
 
 ## 2026-11-07
 

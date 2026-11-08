@@ -109,11 +109,16 @@ function exerciseMatches(ex, filters, words) {
   return words.every(word => name.includes(word));
 }
 
+// Cardio exercises are tagged with category: "cardio" in data/exercises.json
+function isCardio(ex) {
+  return ex.category === "cardio";
+}
+
 // Lets the tests load these functions. The browser skips this line.
 if (typeof module !== "undefined") {
   module.exports = {
     DEFAULT_SETS, DEFAULT_REPS, makeId, defaultState, newItem, plural, escapeHtml, capitalize,
     parseSavedState, findActiveWorkout, hasExercise, findExercise, buildHistoryEntry, clearCrossOffsFromOtherDays,
-    exerciseMatches
+    exerciseMatches, isCardio
   };
 }
