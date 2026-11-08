@@ -32,12 +32,10 @@ let state = loadState();
 // Read saved data from the browser's storage (localStorage)
 function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && Array.isArray(saved.workouts) && saved.workouts.length > 0) return saved;
+    return parseSavedState(localStorage.getItem(STORAGE_KEY));
   } catch (err) {
-    console.warn("Couldn't read saved data, starting fresh.", err);
+    return defaultState(); // storage blocked
   }
-  return defaultState();
 }
 
 function saveState() {
@@ -50,16 +48,16 @@ function saveState() {
 
 // The workout currently on screen
 function activeWorkout() {
-  return state.workouts.find(w => w.id === state.activeWorkoutId) || state.workouts[0];
+  return findActiveWorkout(state);
 }
 
 function isInWorkout(exId) {
-  return activeWorkout().items.some(i => i.exId === exId);
+  return hasExercise(activeWorkout(), exId);
 }
 
 // Look up an exercise by id, in the database or your custom ones
 function getExercise(exId) {
-  return databaseById[exId] || state.customExercises.find(e => e.id === exId);
+  return findExercise(exId, databaseById, state.customExercises);
 }
 
 // makeId, defaultState, newItem, plural, escapeHtml and capitalize are in logic.js
@@ -280,14 +278,7 @@ $("resetDoneBtn").addEventListener("click", () => {
 
 // Uncross anything crossed off on an earlier day. Returns true if anything changed.
 function clearOldCrossOffs() {
-  const today = new Date().toDateString();
-  let changed = false;
-  state.workouts.forEach(w => w.items.forEach(i => {
-    if (i.doneAt && new Date(i.doneAt).toDateString() !== today) {
-      delete i.doneAt;
-      changed = true;
-    }
-  }));
+  const changed = clearCrossOffsFromOtherDays(state.workouts);
   if (changed) saveState();
   return changed;
 }
@@ -338,16 +329,7 @@ $("renameBtn").addEventListener("click", () => renameWorkout(activeWorkout()));
 // Save a copy ("snapshot") of the workout as it is right now,
 // including which exercises were crossed off
 function logSession(workout) {
-  state.history.unshift({
-    id: makeId(),
-    date: new Date().toISOString(),
-    workoutName: workout.name,
-    items: workout.items.map(item => ({
-      name: getExercise(item.exId)?.name || "Unknown exercise",
-      sets: item.sets, reps: item.reps, weight: item.weight, notes: item.notes,
-      done: Boolean(item.doneAt)
-    }))
-  });
+  state.history.unshift(buildHistoryEntry(workout, exId => getExercise(exId)?.name));
   saveState();
   renderHistory();
 }
