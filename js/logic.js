@@ -98,10 +98,22 @@ function clearCrossOffsFromOtherDays(workouts, now = new Date()) {
   return changed;
 }
 
+/* ---------- Search ---------- */
+
+// Does this exercise match the search? filters = { muscle, equipment }
+// (empty means "any"); words = the lowercase search words, all must be in the name.
+function exerciseMatches(ex, filters, words) {
+  if (filters.muscle && !ex.primaryMuscles.includes(filters.muscle) && !ex.secondaryMuscles.includes(filters.muscle)) return false;
+  if (filters.equipment && ex.equipment !== filters.equipment) return false;
+  const name = ex.name.toLowerCase();
+  return words.every(word => name.includes(word));
+}
+
 // Lets the tests load these functions. The browser skips this line.
 if (typeof module !== "undefined") {
   module.exports = {
     DEFAULT_SETS, DEFAULT_REPS, makeId, defaultState, newItem, plural, escapeHtml, capitalize,
-    parseSavedState, findActiveWorkout, hasExercise, findExercise, buildHistoryEntry, clearCrossOffsFromOtherDays
+    parseSavedState, findActiveWorkout, hasExercise, findExercise, buildHistoryEntry, clearCrossOffsFromOtherDays,
+    exerciseMatches
   };
 }

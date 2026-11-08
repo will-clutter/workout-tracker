@@ -10,6 +10,7 @@ What changed in Workout Logbook, newest first.
 - Moved those helpers out of `js/app.js` into a new `js/logic.js` file so the tests can load them. The app works the same as before.
 - Added `CLAUDE.md` with notes on how the tests are set up.
 - **Added 18 more tests** for how the app handles your data: reading saved data (and starting fresh if it's missing or broken), finding the workout on screen, finding an exercise, saving a session to History with what was and wasn't done, and un-crossing exercises from an earlier day. The logic behind these moved into `js/logic.js`, and the app works the same.
+- **Added 16 more tests** for the exercise search (search words, muscle and equipment filters, and all of them together) and for the small body maps on exercise cards (whether they show the front or back, and whether they zoom in on the upper body, the legs or the whole body). That brings the total to 44.
 
 ## 2026-11-07
 

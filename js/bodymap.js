@@ -118,16 +118,31 @@ const LOWER_BODY = ["quadriceps", "hamstrings", "glutes", "calves", "adductors",
 // How many of `muscles` are in `list`
 const countIn = (list, muscles) => muscles.filter(m => list.includes(m)).length;
 
-function renderMiniMap(primary, secondary) {
+// Zoom areas for the mini map
+const MINI_VIEWBOX = {
+  whole: "38 4 124 360",
+  upper: "40 46 120 156",
+  legs: "58 158 84 190"
+};
+
+// Which side to show ("front"/"back") and how far to zoom ("whole"/"upper"/"legs")
+function miniMapView(primary, secondary) {
   const front = countIn(FRONT_ONLY, primary) * 2 + countIn(FRONT_ONLY, secondary);
   const back = countIn(BACK_ONLY, primary) * 2 + countIn(BACK_ONLY, secondary);
-  const view = back > front ? "back" : "front";
+  const side = back > front ? "back" : "front";
 
   // all upper-body muscles → show torso + arms, all lower-body → show legs, mixed → whole body
   const lowerCount = countIn(LOWER_BODY, primary);
-  let viewBox = "38 4 124 360";                                                       // whole body
-  if (primary.length && lowerCount === 0) viewBox = "40 46 120 156";                  // upper body
-  else if (primary.length && lowerCount === primary.length) viewBox = "58 158 84 190"; // legs
+  let zoom = "whole";
+  if (primary.length && lowerCount === 0) zoom = "upper";
+  else if (primary.length && lowerCount === primary.length) zoom = "legs";
+
+  return { side, zoom };
+}
+
+function renderMiniMap(primary, secondary) {
+  const { side: view, zoom } = miniMapView(primary, secondary);
+  const viewBox = MINI_VIEWBOX[zoom];
 
   return `<svg class="bodymap mini" viewBox="${viewBox}" aria-hidden="true">
     ${buildView(view, 0, primary, secondary, false)}
@@ -141,3 +156,8 @@ const ALL_MUSCLES = [
   "abdominals", "quadriceps", "hamstrings", "glutes",
   "calves", "adductors", "abductors"
 ];
+
+// Lets the tests load these functions. The browser skips this line.
+if (typeof module !== "undefined") {
+  module.exports = { countIn, miniMapView, renderMiniMap };
+}

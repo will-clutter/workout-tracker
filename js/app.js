@@ -675,10 +675,7 @@ $("moreResultsBtn").addEventListener("click", () => {
 // Does this exercise match the current filters?
 // words = the search split into words; every one has to appear in the name.
 function matchesFilters(ex, words) {
-  if (filters.muscle && !ex.primaryMuscles.includes(filters.muscle) && !ex.secondaryMuscles.includes(filters.muscle)) return false;
-  if (filters.equipment && ex.equipment !== filters.equipment) return false;
-  const name = ex.name.toLowerCase();
-  return words.every(word => name.includes(word));
+  return exerciseMatches(ex, filters, words);
 }
 
 function renderResults() {
