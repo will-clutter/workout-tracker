@@ -51,8 +51,45 @@ function activeWorkout() {
   return findActiveWorkout(state);
 }
 
-function isInWorkout(exId) {
-  return hasExercise(activeWorkout(), exId);
+/*
+  The two lists of cards: your workout, and your cardio.
+  Most of the card code (crossing off, removing, adding) works on either one,
+  and looks up what's different here.
+*/
+const LISTS = {
+  workout: {
+    name: "workout",
+    holder: () => activeWorkout(),        // the thing with .items
+    label: () => activeWorkout().name,     // "Add to ___"
+    container: "cards",
+    sheet: "browserSheet",
+    newItem: ex => newItem(ex),
+    summary: item => summaryHtml(item),
+    render: () => renderWorkout(),
+    renderPicker: () => renderResults(),
+    done: "Workout complete"
+  },
+  cardio: {
+    name: "cardio",
+    holder: () => state.cardio,
+    label: () => "Cardio",
+    container: "cardioCards",
+    sheet: "cardioSheet",
+    newItem: ex => newCardioItem(ex),
+    summary: item => cardioSummaryHtml(item),
+    render: () => renderCardio(),
+    renderPicker: () => renderCardioResults(),
+    done: "Cardio complete"
+  }
+};
+
+// Which list a card on screen is in
+function listForCard(card) {
+  return card.closest("#cardioCards") ? LISTS.cardio : LISTS.workout;
+}
+
+function isInList(list, exId) {
+  return hasExercise(list.holder(), exId);
 }
 
 // Look up an exercise by id, in the database or your custom ones
@@ -83,14 +120,11 @@ function renderWorkout() {
   $("workoutName").textContent = workout.name;
   $("switcherName").textContent = workout.name;
 
-  // Still to do (in your order) on top; crossed off below, in the order you finished them
-  const todo = workout.items.filter(i => !i.doneAt);
-  const done = workout.items.filter(i => i.doneAt).sort((a, b) => a.doneAt - b.doneAt);
-  $("exerciseList").replaceChildren(...todo.map(buildExerciseCard));
-  $("completedList").replaceChildren(...done.map(buildExerciseCard));
-  $("exercisesLabel").classList.toggle("hidden", todo.length === 0);
-  $("completedHead").classList.toggle("hidden", done.length === 0);
+  fillCardLists(workout.items, buildExerciseCard, {
+    todo: "exerciseList", done: "completedList", todoLabel: "exercisesLabel", doneHead: "completedHead"
+  });
 
+  // "Nothing here yet!" only when nothing's been added (not when it's all crossed off)
   const empty = workout.items.length === 0;
   $("emptyState").classList.toggle("hidden", !empty);
   ["logBtn", "summaryMap"].forEach(id => $(id).classList.toggle("hidden", empty));
@@ -98,14 +132,26 @@ function renderWorkout() {
   hintCrossOff();
 }
 
-// Same as renderWorkout, but cards glide from their old spot to their new one
+// Still to do (in your order) on top; crossed off below, in the order you finished them.
+// ids = the two lists, and the headings above them (hidden when their list is empty).
+function fillCardLists(items, buildCard, ids) {
+  const todo = items.filter(i => !i.doneAt);
+  const done = items.filter(i => i.doneAt).sort((a, b) => a.doneAt - b.doneAt);
+  $(ids.todo).replaceChildren(...todo.map(buildCard));
+  $(ids.done).replaceChildren(...done.map(buildCard));
+  $(ids.todoLabel).classList.toggle("hidden", todo.length === 0);
+  $(ids.doneHead).classList.toggle("hidden", done.length === 0);
+}
+
+// Same as list.render(), but cards glide from their old spot to their new one
 // (e.g. down into Completed) instead of jumping there.
-function renderWorkoutAnimated() {
-  const oldTops = new Map([...document.querySelectorAll(".card")].map(c => [c.dataset.uid, c.getBoundingClientRect().top]));
-  renderWorkout();
+function renderAnimated(list) {
+  const cards = () => [...$(list.container).querySelectorAll(".card")];
+  const oldTops = new Map(cards().map(c => [c.dataset.uid, c.getBoundingClientRect().top]));
+  list.render();
   if (prefersReducedMotion()) return;
 
-  const moved = [...document.querySelectorAll(".card")].filter(c => oldTops.has(c.dataset.uid));
+  const moved = cards().filter(c => oldTops.has(c.dataset.uid));
   moved.forEach(card => card.classList.add("settled")); // already on screen, so skip the fade-in
   moved.forEach(card => {
     const distance = oldTops.get(card.dataset.uid) - card.getBoundingClientRect().top;
@@ -186,14 +232,15 @@ function buildExerciseCard(item) {
 
 // The saved item that a card on screen belongs to
 function itemForCard(card) {
-  return activeWorkout().items.find(i => i.uid === card.dataset.uid);
+  return listForCard(card).holder().items.find(i => i.uid === card.dataset.uid);
 }
 
-// One click handler for every card in both lists (this is called "event delegation")
-$("cards").addEventListener("click", event => {
+// One click handler for every card in a tab's lists (this is called "event delegation")
+function handleCardClick(event) {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const card = button.closest(".card");
+  const list = listForCard(card);
   const item = itemForCard(card);
   if (!item) return;
 
@@ -202,12 +249,24 @@ $("cards").addEventListener("click", event => {
     button.setAttribute("aria-expanded", nowOpen);
     if (nowOpen) openCards.add(item.uid); else openCards.delete(item.uid);
   }
-  if (button.dataset.action === "info") openDetail(item.exId, { inWorkout: true });
+  if (button.dataset.action === "info") openDetail(item.exId, { target: list.name, fromCard: true });
   if (button.dataset.action === "remove") removeItem(item, card);
-});
+  if (button.dataset.action === "intensity") {
+    // Tap a level to pick it; tap it again to clear it
+    const level = button.dataset.level;
+    item.intensity = item.intensity === level ? "" : level;
+    saveState();
+    card.querySelectorAll("[data-action=intensity]").forEach(chip => {
+      const on = chip.dataset.level === item.intensity;
+      chip.classList.toggle("on", on);
+      chip.setAttribute("aria-pressed", on);
+    });
+    card.querySelector(".row-summary").innerHTML = list.summary(item);
+  }
+}
 
-// Save whenever you type in sets / reps / weight / notes
-$("cards").addEventListener("input", event => {
+// Save whenever you type in a box (sets / reps / weight / duration / notes...)
+function handleCardInput(event) {
   const field = event.target.dataset.field;
   if (!field) return;
   const card = event.target.closest(".card");
@@ -215,23 +274,29 @@ $("cards").addEventListener("input", event => {
   if (!item) return;
   item[field] = event.target.value;
   saveState();
-  card.querySelector(".row-summary").innerHTML = summaryHtml(item); // keep the summary line up to date
+  card.querySelector(".row-summary").innerHTML = listForCard(card).summary(item); // keep the summary line up to date
+}
+
+["cards", "cardioCards"].forEach(id => {
+  $(id).addEventListener("click", handleCardClick);
+  $(id).addEventListener("input", handleCardInput);
 });
 
 function removeItem(item, card) {
-  const workout = activeWorkout();
-  const index = workout.items.indexOf(item);
+  const list = listForCard(card);
+  const items = list.holder().items;
+  const index = items.indexOf(item);
   card.classList.add("removing");
 
   // Wait for the slide-out animation, then actually remove it
   setTimeout(() => {
-    workout.items.splice(index, 1);
+    items.splice(index, 1);
     saveState();
-    renderWorkout();
+    list.render();
     showToast(`Removed ${getExercise(item.exId)?.name || "exercise"}`, "Undo", () => {
-      workout.items.splice(index, 0, item);
+      items.splice(index, 0, item);
       saveState();
-      renderWorkout();
+      list.render();
     });
   }, 220);
 }
@@ -244,41 +309,49 @@ function removeItem(item, card) {
 enableSwipe($("exerciseList"), ".card", -1, 0.5, card => setDone(card, true));
 // ...and swipe a crossed-off card right to bring it back
 enableSwipe($("completedList"), ".card", 1, 0.5, card => setDone(card, false));
+// Same for cardio
+enableSwipe($("cardioList"), ".card", -1, 0.5, card => setDone(card, true));
+enableSwipe($("cardioCompletedList"), ".card", 1, 0.5, card => setDone(card, false));
 
 function setDone(card, isDone) {
   const item = itemForCard(card);
   if (!item) return;
-  const workout = activeWorkout();
+  const list = listForCard(card);
+  const holder = list.holder();
   if (isDone) item.doneAt = Date.now(); else delete item.doneAt;
   saveState();
 
   // Draw (or erase) the line through the name first, then move the card
   card.classList.toggle("done", isDone);
   setTimeout(() => {
-    renderWorkoutAnimated();
+    renderAnimated(list);
     if (!isDone) return;
-    if (workout.items.every(i => i.doneAt)) {
-      logSession(workout); // everything's crossed off: log it and celebrate
-      celebrate(workout);
+    if (holder.items.every(i => i.doneAt)) {
+      // everything's crossed off: log it and celebrate
+      if (list === LISTS.cardio) logCardio(); else logSession(holder);
+      celebrate(list.done, list.label());
     } else {
       showToast(`Completed ${getExercise(item.exId)?.name || "exercise"}`, "Undo", () => {
         delete item.doneAt;
         saveState();
-        renderWorkoutAnimated();
+        renderAnimated(list);
       });
     }
   }, 400);
 }
 
-$("resetDoneBtn").addEventListener("click", () => {
-  activeWorkout().items.forEach(i => delete i.doneAt);
-  saveState();
-  renderWorkoutAnimated();
+// The Reset buttons next to "Completed"
+[["resetDoneBtn", LISTS.workout], ["cardioResetBtn", LISTS.cardio]].forEach(([id, list]) => {
+  $(id).addEventListener("click", () => {
+    list.holder().items.forEach(i => delete i.doneAt);
+    saveState();
+    renderAnimated(list);
+  });
 });
 
 // Uncross anything crossed off on an earlier day. Returns true if anything changed.
 function clearOldCrossOffs() {
-  const changed = clearCrossOffsFromOtherDays(state.workouts);
+  const changed = clearCrossOffsFromOtherDays([...state.workouts, state.cardio]);
   if (changed) saveState();
   return changed;
 }
@@ -286,13 +359,17 @@ function clearOldCrossOffs() {
 // Phones often keep the app open in the background for days,
 // so check again whenever you come back to it
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && clearOldCrossOffs()) renderWorkout();
+  if (document.visibilityState === "visible" && clearOldCrossOffs()) {
+    renderWorkout();
+    renderCardio();
+  }
 });
 
-// Glow + "Workout complete" message over the screen
-function celebrate(workout) {
-  if (prefersReducedMotion()) return showToast(`Workout complete. Logged ${workout.name}`);
-  $("celebrationName").textContent = `${workout.name} logged to History`;
+// Glow + "Workout complete" message over the screen. name = what was logged.
+function celebrate(title, name) {
+  if (prefersReducedMotion()) return showToast(`${title}. Logged ${name}`);
+  $("celebrationTitle").textContent = title;
+  $("celebrationName").textContent = `${name} logged to History`;
   const overlay = $("celebration");
   overlay.classList.remove("play");
   void overlay.offsetWidth; // lets the animation restart if it's already showing
@@ -323,6 +400,136 @@ function legendHtml() {
 $("renameBtn").addEventListener("click", () => renameWorkout(activeWorkout()));
 
 /* ============================================================
+   CARDIO TAB
+   One list (no switcher). Works like the Workout tab, but each card
+   has duration, intensity, heart rate, calories, distance and notes.
+   Anything left empty isn't shown on the card or in History.
+   ============================================================ */
+
+function renderCardio() {
+  const items = state.cardio.items;
+  fillCardLists(items, buildCardioCard, {
+    todo: "cardioList", done: "cardioCompletedList", todoLabel: "cardioLabel", doneHead: "cardioCompletedHead"
+  });
+  const empty = items.length === 0;
+  $("cardioEmpty").classList.toggle("hidden", !empty);
+  $("logCardioBtn").classList.toggle("hidden", empty);
+  hintCrossOff();
+}
+
+// "30 min · High intensity · 145 bpm" with the numbers in bold. Empty if nothing's filled in.
+function cardioSummaryHtml(item) {
+  const parts = cardioSummaryParts(item).map(part => escapeHtml(part).replace(/^(\S+)/, "<b>$1</b>"));
+  if (item.notes) parts.push(ICONS.note);
+  return parts.join(" · ");
+}
+
+// One number box on a cardio card
+function cardioStatHtml(label, field, value, unit, inputmode = "decimal") {
+  return `<div class="stat">
+    <label>${label}</label>
+    <div class="weight-wrap">
+      <input type="number" inputmode="${inputmode}" min="0" step="any" placeholder="—" data-field="${field}" value="${escapeHtml(value)}">
+      <span class="unit">${unit}</span>
+    </div>
+  </div>`;
+}
+
+// One cardio card
+function buildCardioCard(item) {
+  const exercise = getExercise(item.exId);
+  const name = exercise ? exercise.name : "Unknown exercise";
+  const isOpen = openCards.has(item.uid);
+  const hasMuscles = exercise && (exercise.primaryMuscles.length || exercise.secondaryMuscles.length);
+
+  const li = document.createElement("li");
+  li.className = "card glass swipe " + (item.doneAt ? "done swipe-undo" : "swipe-done") + (isOpen ? " open" : "");
+  li.dataset.uid = item.uid;
+  li.innerHTML = `
+    <button class="row" data-action="toggle" aria-expanded="${isOpen}">
+      ${thumbHtml(exercise)}
+      <span class="row-text">
+        <div class="row-name"><span>${escapeHtml(name)}</span></div>
+        <div class="row-summary">${cardioSummaryHtml(item)}</div>
+      </span>
+      ${hasMuscles ? `<span class="mini-map">${renderMiniMap(exercise.primaryMuscles, exercise.secondaryMuscles)}</span>` : ""}
+    </button>
+
+    <div class="editor"><div class="editor-inner"><div class="editor-content">
+      <div class="stats cardio-stats">
+        ${cardioStatHtml("Duration", "duration", item.duration, "min", "numeric")}
+        ${cardioStatHtml("Heart rate", "heartRate", item.heartRate, "bpm", "numeric")}
+        ${cardioStatHtml("Calories", "calories", item.calories, "cal", "numeric")}
+        ${cardioStatHtml("Distance", "distance", item.distance, "mi")}
+      </div>
+      <div class="intensity">
+        <span class="intensity-label">Intensity</span>
+        ${INTENSITIES.map(level => `<button type="button" class="chip ${item.intensity === level ? "on" : ""}" data-action="intensity" data-level="${level}" aria-pressed="${item.intensity === level}">${level}</button>`).join("")}
+      </div>
+      <textarea class="notes" data-field="notes" placeholder="Notes (e.g. intervals, incline 8)">${escapeHtml(item.notes)}</textarea>
+      <div class="editor-actions">
+        <button class="btn small" data-action="info">ⓘ More info</button>
+        <button class="btn small danger" data-action="remove">Remove</button>
+      </div>
+    </div></div></div>
+  `;
+  return li;
+}
+
+function logCardio() {
+  state.history.unshift(buildCardioHistoryEntry(state.cardio.items, exId => getExercise(exId)?.name));
+  saveState();
+  renderHistory();
+}
+
+$("logCardioBtn").addEventListener("click", () => {
+  logCardio();
+  showToast("Logged cardio");
+});
+
+/* ---------- Picking cardio: the cardio exercises + your own ---------- */
+
+$("addCardioBtn").addEventListener("click", () => {
+  openSheet("cardioSheet");
+  renderCardioResults();
+});
+
+function renderCardioResults() {
+  const options = [...state.customExercises, ...database].filter(isCardio);
+  const added = new Set(state.cardio.items.map(i => i.exId));
+  $("cardioResults").innerHTML = options.map(ex => resultRowHtml(ex, added.has(ex.id))).join("");
+  hintAdd();
+}
+
+$("cardioResults").addEventListener("click", event => {
+  const result = event.target.closest(".result");
+  if (result) openDetail(result.dataset.id, { target: "cardio" });
+});
+
+$("customCardioBtn").addEventListener("click", async () => {
+  const result = await showForm({
+    title: "Create your own cardio",
+    submitLabel: "Create",
+    fields: [{ name: "name", label: "Name (e.g. Swimming, Hiking)", value: "" }]
+  });
+  if (!result || !result.name) return;
+
+  const ex = {
+    id: "custom_" + makeId(),
+    name: result.name,
+    equipment: "",
+    primaryMuscles: [],
+    secondaryMuscles: [],
+    category: "cardio",
+    custom: true
+  };
+  state.customExercises.push(ex);
+  saveState();
+  renderCardioResults();
+  openDetail(ex.id, { target: "cardio" });
+});
+
+/* ============================================================
    LOGGING + HISTORY
    ============================================================ */
 
@@ -340,10 +547,40 @@ $("logBtn").addEventListener("click", () => {
   showToast(`Logged ${workout.name}`);
 });
 
-function renderHistory() {
-  $("historyEmpty").classList.toggle("hidden", state.history.length > 0);
+// Which half of History is showing: "workouts" or "cardio". Not saved; resets on reload.
+let historyView = "workouts";
 
-  $("historyList").innerHTML = state.history.map(session => {
+$("historyToggle").addEventListener("click", event => {
+  const seg = event.target.closest(".seg");
+  if (!seg || seg.dataset.view === historyView) return;
+  historyView = seg.dataset.view;
+  $("historyToggle").querySelectorAll(".seg").forEach(s => {
+    s.classList.toggle("on", s === seg);
+    s.setAttribute("aria-selected", s === seg);
+  });
+  renderHistory();
+});
+
+// One exercise line in a History session
+function historyLineHtml(item, isCardio) {
+  if (isCardio) {
+    const parts = cardioSummaryParts(item);
+    return `<b>${escapeHtml(item.name)}</b>${parts.length ? ` — ${escapeHtml(parts.join(" · "))}` : ""}`;
+  }
+  return `<b>${escapeHtml(item.name)}</b> — ${escapeHtml(item.sets || "?")} × ${escapeHtml(item.reps || "?")}${item.weight ? ` @ ${escapeHtml(item.weight)} lbs` : ""}`;
+}
+
+function renderHistory() {
+  const showCardio = historyView === "cardio";
+  const sessions = state.history.filter(s => isCardioSession(s) === showCardio);
+
+  $("historyEmpty").classList.toggle("hidden", sessions.length > 0);
+  $("historyEmptyTitle").textContent = showCardio ? "No cardio logged yet." : "No sessions logged yet.";
+  $("historyEmptyHint").innerHTML = showCardio
+    ? "After cardio, tap <b>Log today's cardio</b> to save it here."
+    : "After a workout, tap <b>Log today's session</b> to save it here.";
+
+  $("historyList").innerHTML = sessions.map(session => {
     const date = new Date(session.date).toLocaleDateString(undefined, {
       weekday: "short", month: "short", day: "numeric", year: "numeric"
     });
@@ -367,7 +604,7 @@ function renderHistory() {
           ${session.items.map(i => `
             <li${tracked && !i.done ? ` class="skipped"` : ""}>
               ${tracked && !i.done ? `<span class="skipped-label">Not done</span>` : ""}
-              <b>${escapeHtml(i.name)}</b> — ${escapeHtml(i.sets || "?")} × ${escapeHtml(i.reps || "?")}${i.weight ? ` @ ${escapeHtml(i.weight)} lbs` : ""}
+              ${historyLineHtml(i, showCardio)}
               ${i.notes ? `<div class="note">${escapeHtml(i.notes)}</div>` : ""}
             </li>`).join("")}
         </ul>
@@ -390,7 +627,7 @@ $("historyList").addEventListener("click", async event => {
 });
 
 /* ============================================================
-   TABS (Workout / History)
+   TABS (Workout / Cardio / History)
    ============================================================ */
 
 const tabButtons = document.querySelectorAll(".tab-btn");
@@ -401,7 +638,7 @@ tabButtons.forEach(button => {
     document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + button.dataset.tab));
     moveTabIndicator(button, true);
     window.scrollTo({ top: 0 });
-    hintCrossOff(); // only does anything on the Workout tab
+    hintCrossOff(); // only does anything on the Workout and Cardio tabs
   });
 });
 
@@ -606,17 +843,22 @@ function showHintOnce(name, findRow, direction) {
   }, 700); // wait for the cards / sheet to finish appearing
 }
 
-// Swipe left to cross off: shown on the first exercise card
+// Swipe left to cross off: shown on the first exercise (or cardio) card
 function hintCrossOff() {
-  showHintOnce("crossOff", () =>
-    openSheets.length === 0 && $("tab-workout").classList.contains("active") &&
-    $("exerciseList").querySelector(".card"), -1);
+  showHintOnce("crossOff", () => {
+    if (openSheets.length) return null;
+    if ($("tab-workout").classList.contains("active")) return $("exerciseList").querySelector(".card");
+    if ($("tab-cardio").classList.contains("active")) return $("cardioList").querySelector(".card");
+  }, -1);
 }
 
 // Swipe right to add: shown on the first search result
 function hintAdd() {
-  showHintOnce("add", () =>
-    openSheets.at(-1) === "browserSheet" && $("resultsList").querySelector("li.swipe"), 1);
+  showHintOnce("add", () => {
+    const top = openSheets.at(-1);
+    if (top === "browserSheet") return $("resultsList").querySelector("li.swipe");
+    if (top === "cardioSheet") return $("cardioResults").querySelector("li.swipe");
+  }, 1);
 }
 
 /* ============================================================
@@ -639,7 +881,7 @@ function setupBrowser() {
   ).join("");
 
   // Equipment dropdown, built from whatever the database contains
-  const equipment = [...new Set(database.map(e => e.equipment).filter(Boolean))].sort();
+  const equipment = [...new Set(database.filter(e => !isCardio(e)).map(e => e.equipment).filter(Boolean))].sort();
   $("equipmentSelect").innerHTML += equipment.map(e => `<option value="${e}">${e}</option>`).join("");
 }
 
@@ -680,59 +922,95 @@ function matchesFilters(ex, words) {
 
 function renderResults() {
   const words = filters.search ? filters.search.split(/\s+/) : []; // split once, not once per exercise
-  const matches = [...state.customExercises, ...database].filter(ex => matchesFilters(ex, words));
+  // Cardio lives in the Cardio tab, so it's left out of this search
+  const pool = [...state.customExercises, ...database].filter(ex => !isCardio(ex));
+  const matches = pool.filter(ex => matchesFilters(ex, words));
   const inWorkout = new Set(activeWorkout().items.map(i => i.exId));
 
   const header = matches.length
     ? `<li class="results-count">${plural(matches.length, "exercise")}</li>`
-    : `<li class="empty"><p>No matches.</p><p class="muted">Try another word, or create your own exercise above.</p></li>`;
+    : noResultsHtml(pool, words);
 
-  $("resultsList").innerHTML = header + matches.slice(0, resultsShown).map(ex => `
-    <li class="swipe swipe-add">
-      <button class="result" data-id="${escapeHtml(ex.id)}">
-        ${thumbHtml(ex, "small")}
-        <span class="result-text">
-          <div class="result-name">${escapeHtml(ex.name)}</div>
-          <div class="result-meta">${escapeHtml(ex.primaryMuscles.join(", "))}${ex.equipment ? " · " + escapeHtml(ex.equipment) : ""}${ex.custom ? " · custom" : ""}</div>
-        </span>
-        ${inWorkout.has(ex.id) ? IN_WORKOUT_DOT : `<span class="result-add">›</span>`}
-      </button>
-    </li>`).join("");
+  $("resultsList").innerHTML = header + matches.slice(0, resultsShown).map(ex => resultRowHtml(ex, inWorkout.has(ex.id))).join("");
 
   $("moreResultsBtn").classList.toggle("hidden", matches.length <= resultsShown);
   hintAdd();
 }
 
-// Shown on results that are already in the workout
-const IN_WORKOUT_DOT = `<span class="result-dot" title="In this workout"></span>`;
+// Nothing found. If it looks like a typo, offer the corrected search
+// (only if that search actually finds something with the current filters).
+function noResultsHtml(pool, words) {
+  const inFilters = pool.filter(ex => matchesFilters(ex, []));
+  const suggestion = words.length ? suggestSearch(words, inFilters.map(ex => ex.name)) : null;
+  if (suggestion && inFilters.some(ex => matchesFilters(ex, suggestion.split(" ")))) {
+    return `<li class="empty">
+      <p>No results for "${escapeHtml(filters.search)}".</p>
+      <button class="suggest-btn" data-suggest="${escapeHtml(suggestion)}">Show results for "${escapeHtml(suggestion)}"?</button>
+    </li>`;
+  }
+  return `<li class="empty"><p>No matches.</p><p class="muted">Try another word, or create your own exercise above.</p></li>`;
+}
+
+// One row in a list of exercises to add. added = it's already in the list.
+function resultRowHtml(ex, added) {
+  const meta = [ex.primaryMuscles.join(", "), ex.equipment, ex.custom ? "custom" : ""].filter(Boolean).join(" · ");
+  return `
+    <li class="swipe swipe-add">
+      <button class="result" data-id="${escapeHtml(ex.id)}">
+        ${thumbHtml(ex, "small")}
+        <span class="result-text">
+          <div class="result-name">${escapeHtml(ex.name)}</div>
+          <div class="result-meta">${escapeHtml(meta)}</div>
+        </span>
+        ${added ? IN_WORKOUT_DOT : `<span class="result-add">›</span>`}
+      </button>
+    </li>`;
+}
+
+// Shown on results that are already in the workout (or cardio)
+const IN_WORKOUT_DOT = `<span class="result-dot" title="Already added"></span>`;
 
 $("resultsList").addEventListener("click", event => {
+  const suggest = event.target.closest("[data-suggest]");
+  if (suggest) {
+    // Use the corrected search
+    $("searchInput").value = suggest.dataset.suggest;
+    filters.search = suggest.dataset.suggest;
+    return renderFirstPage();
+  }
   const result = event.target.closest(".result");
   if (result) openDetail(result.dataset.id);
 });
 
 // Swipe a result right (at least halfway) to add it without opening it
-enableSwipe($("resultsList"), "li.swipe", 1, 0.5, row => {
-  const result = row.querySelector(".result");
-  const ex = getExercise(result.dataset.id);
-  if (isInWorkout(ex.id)) return showToast("Already in your workout");
+function enableSwipeToAdd(resultsList, list) {
+  enableSwipe(resultsList, "li.swipe", 1, 0.5, row => {
+    const result = row.querySelector(".result");
+    const ex = getExercise(result.dataset.id);
+    if (isInList(list, ex.id)) return showToast(`Already in ${list.label()}`);
 
-  activeWorkout().items.push(newItem(ex)); // card starts closed, so quick adds don't pile up open
-  saveState();
-  renderWorkout();
-  result.querySelector(".result-add").outerHTML = IN_WORKOUT_DOT; // update just this row
-  showToast(`Added ${ex.name}`);
-});
+    list.holder().items.push(list.newItem(ex)); // card starts closed, so quick adds don't pile up open
+    saveState();
+    list.render();
+    result.querySelector(".result-add").outerHTML = IN_WORKOUT_DOT; // update just this row
+    showToast(`Added ${ex.name}`);
+  });
+}
+enableSwipeToAdd($("resultsList"), LISTS.workout);
+enableSwipeToAdd($("cardioResults"), LISTS.cardio);
 
 /* ============================================================
    EXERCISE DETAILS ("more info" + body map)
    ============================================================ */
 
-function openDetail(exId, { inWorkout = false } = {}) {
+// target = which list it would be added to ("workout" or "cardio").
+// fromCard = opened from a card that's already in that list.
+function openDetail(exId, { target = "workout", fromCard = false } = {}) {
   const ex = getExercise(exId);
   if (!ex) return;
-  const workout = activeWorkout();
-  const alreadyAdded = isInWorkout(exId);
+  const list = LISTS[target];
+  const alreadyAdded = isInList(list, exId);
+  const hasMuscles = ex.primaryMuscles.length || ex.secondaryMuscles.length;
 
   $("detailName").textContent = ex.name;
 
@@ -749,20 +1027,20 @@ function openDetail(exId, { inWorkout = false } = {}) {
   ).join("");
 
   let actionButton;
-  if (inWorkout) {
-    actionButton = `<button class="btn ghost big" data-close>Back to workout</button>`;
+  if (fromCard) {
+    actionButton = `<button class="btn ghost big" data-close>Back to ${list.name}</button>`;
   } else if (alreadyAdded) {
-    actionButton = `<button class="btn big added" disabled>✓ Already in ${escapeHtml(workout.name)}</button>`;
+    actionButton = `<button class="btn big added" disabled>✓ Already in ${escapeHtml(list.label())}</button>`;
   } else {
-    actionButton = `<button id="addToWorkoutBtn" class="btn primary big">＋ Add to ${escapeHtml(workout.name)}</button>`;
+    actionButton = `<button id="addToWorkoutBtn" class="btn primary big">＋ Add to ${escapeHtml(list.label())}</button>`;
   }
 
   $("detailBody").innerHTML = `
     <div class="detail-tags">${tags}</div>
-    <div class="map-panel glass">
+    ${hasMuscles ? `<div class="map-panel glass">
       ${renderBodyMap(ex.primaryMuscles, ex.secondaryMuscles)}
       ${legendHtml()}
-    </div>
+    </div>` : ""}
     ${photos ? `<div class="photos">${photos}</div>` : ""}
     <div id="detailSteps" data-id="${escapeHtml(ex.id)}"></div>
     ${ex.custom ? `<button class="btn danger small" id="deleteCustomBtn">Delete this custom exercise</button>` : ""}
@@ -770,7 +1048,7 @@ function openDetail(exId, { inWorkout = false } = {}) {
   `;
 
   // These buttons only exist sometimes; ?. skips the ones that aren't there
-  $("addToWorkoutBtn")?.addEventListener("click", event => addToWorkout(ex, event.currentTarget));
+  $("addToWorkoutBtn")?.addEventListener("click", event => addToList(list, ex, event.currentTarget));
   $("detailBody").querySelector("[data-close]")?.addEventListener("click", () => closeSheet("detailSheet"));
   $("deleteCustomBtn")?.addEventListener("click", () => deleteCustomExercise(ex));
 
@@ -807,9 +1085,9 @@ async function showSteps(exId) {
     <ol>${steps.map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ol></details>`;
 }
 
-function addToWorkout(ex, button) {
-  const item = newItem(ex);
-  activeWorkout().items.push(item);
+function addToList(list, ex, button) {
+  const item = list.newItem(ex);
+  list.holder().items.push(item);
   openCards.add(item.uid); // open the new card so you can fill in weight right away
   saveState();
 
@@ -821,8 +1099,8 @@ function addToWorkout(ex, button) {
 
   setTimeout(() => {
     closeSheet("detailSheet");
-    closeSheet("browserSheet");
-    renderWorkout();
+    closeSheet(list.sheet);
+    list.render();
     // Briefly glow the new card and scroll to it
     const card = document.querySelector(`.card[data-uid="${item.uid}"]`);
     if (card) {
@@ -864,11 +1142,13 @@ async function deleteCustomExercise(ex) {
   const ok = await confirmDialog(`Delete "${ex.name}"?`, "It will also be removed from any workouts.", "Delete");
   if (!ok) return;
   state.customExercises = state.customExercises.filter(e => e.id !== ex.id);
-  state.workouts.forEach(w => { w.items = w.items.filter(i => i.exId !== ex.id); });
+  [...state.workouts, state.cardio].forEach(w => { w.items = w.items.filter(i => i.exId !== ex.id); });
   saveState();
   closeSheet("detailSheet");
   renderResults();
+  renderCardioResults();
   renderWorkout();
+  renderCardio();
 }
 
 /* ============================================================
@@ -1083,6 +1363,7 @@ function showToast(message, actionLabel, onAction) {
 async function start() {
   clearOldCrossOffs(); // a new day: uncross yesterday's exercises
   renderWorkout();
+  renderCardio();
   renderHistory();
   try {
     const response = await fetch("data/exercises.json");
@@ -1090,6 +1371,7 @@ async function start() {
     database.forEach(ex => { databaseById[ex.id] = ex; });
     setupBrowser();
     renderWorkout(); // re-draw now that exercise names/muscles are known
+    renderCardio();
   } catch (err) {
     console.error(err);
     showToast("Couldn't load the exercise list");

@@ -15,8 +15,20 @@ const isFreshState = state =>
 /* ---------- parseSavedState ---------- */
 
 test("parseSavedState: valid saved data comes back as-is", () => {
-  const saved = { workouts: [{ id: "a", name: "Legs", items: [] }], activeWorkoutId: "a", customExercises: [], history: [] };
+  const saved = {
+    workouts: [{ id: "a", name: "Legs", items: [] }], activeWorkoutId: "a", customExercises: [], history: [],
+    cardio: { items: [{ uid: "c1", exId: "Stairmaster", duration: "20" }] }
+  };
   assert.deepEqual(parseSavedState(JSON.stringify(saved)), saved);
+});
+
+test("parseSavedState: data saved before the Cardio tab gets an empty cardio list", () => {
+  const saved = { workouts: [{ id: "a", name: "Legs", items: [] }], activeWorkoutId: "a", customExercises: [], history: [] };
+  assert.deepEqual(parseSavedState(JSON.stringify(saved)), { ...saved, cardio: { items: [] } });
+});
+
+test("parseSavedState: a fresh start includes an empty cardio list", () => {
+  assert.deepEqual(parseSavedState(null).cardio, { items: [] });
 });
 
 test("parseSavedState: missing data gives a fresh start", () => {

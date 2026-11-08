@@ -4,7 +4,22 @@ What changed in Workout Logbook, newest first.
 
 ## 2026-11-08
 
+### Added
+
+- **Cardio tab.** A new tab with a heart icon, between Workout and History. Tap **Add Cardio** to pick from the 14 cardio exercises (treadmill, bikes, elliptical, rower, Stairmaster and more), or create your own (like Swimming or Hiking). Each one has boxes for duration, heart rate, calories and distance, a Low / Medium / High intensity choice, and notes. You only see what you fill in: an entry with just a duration shows "25 min", and one with nothing filled in shows just its name. Cardio works like your workout: swipe left to cross off, swipe right to bring back, swipe a choice right to add it quickly, and crossing everything off logs it to History with a "Cardio complete" glow.
+- **"Did you mean…?" in the exercise search.** If a search finds nothing because of a typo, it says, for example, *No results for "bciep curl"* with a **Show results for "bicep curl"?** link underneath. It also catches words typed without a space, like "benchpress". If nothing close is found, you see the usual "No matches" message.
+
+### Changed
+
+- **History is split into Workouts and Cardio.** A switch at the top of History shows one or the other. Sessions you logged before today are all under Workouts.
+- **A friendlier empty screen.** When your workout or cardio list has nothing in it, a quiet "Nothing here yet!" box shows where the cards would be. It doesn't appear when you've simply crossed everything off.
+- **Cardio exercises no longer show up in the Workout tab's search**, since they now have their own tab.
+- The bottom bar is a little wider to fit the third tab.
+
 ### Behind the scenes
+
+- **Added 22 more tests** (66 in total) for the new cardio entries (what's shown when only some fields are filled in, how they're saved to History, and how data saved before the Cardio tab still loads) and for the typo suggestions.
+- Crossing off, removing and adding now share the same code for workouts and cardio, so both tabs behave the same way.
 
 - **Added the first automated tests.** Ten tests check the small helpers the app relies on: making counts like "3 exercises", making typed text safe to show on screen, capitalizing names, setting up a fresh workout, and adding an exercise with 3 sets × 10 reps. Run them with `npm test` (needs Node.js).
 - Moved those helpers out of `js/app.js` into a new `js/logic.js` file so the tests can load them. The app works the same as before.

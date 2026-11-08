@@ -68,9 +68,9 @@
         <ul id="completedList" class="exercise-list"></ul>
       </div>
 
-      <div id="emptyState" class="empty">
-        <p>No exercises yet.</p>
-        <p class="muted">Tap <b>Add Exercise</b> to build this workout.</p>
+      <div id="emptyState" class="empty nothing-yet">
+        <p>Nothing here yet!</p>
+        <p class="muted">Tap <b>Add Exercise</b> to get started.</p>
       </div>
 
       <div class="workout-actions">
@@ -79,13 +79,46 @@
       </div>
     </section>
 
+    <!-- ===== CARDIO TAB ===== -->
+    <section id="tab-cardio" class="tab">
+      <div class="workout-title-row">
+        <h1>Cardio</h1>
+      </div>
+
+      <!-- Cardio cards: still to do, then crossed off (swipe left to cross off) -->
+      <div id="cardioCards">
+        <div id="cardioLabel" class="section-label">Activities</div>
+        <ul id="cardioList" class="exercise-list"></ul>
+        <div id="cardioCompletedHead" class="section-label completed-head hidden">
+          Completed
+          <button id="cardioResetBtn" class="btn ghost small">Reset</button>
+        </div>
+        <ul id="cardioCompletedList" class="exercise-list"></ul>
+      </div>
+
+      <div id="cardioEmpty" class="empty nothing-yet">
+        <p>Nothing here yet!</p>
+        <p class="muted">Tap <b>Add Cardio</b> to get started.</p>
+      </div>
+
+      <div class="workout-actions">
+        <button id="addCardioBtn" class="btn primary big">＋ Add Cardio</button>
+        <button id="logCardioBtn" class="btn ghost">✓ Log today's cardio</button>
+      </div>
+    </section>
+
     <!-- ===== HISTORY TAB ===== -->
     <section id="tab-history" class="tab">
       <h1>History</h1>
+      <!-- Workouts | Cardio switch -->
+      <div id="historyToggle" class="segmented" role="tablist">
+        <button class="seg on" data-view="workouts" role="tab" aria-selected="true">Workouts</button>
+        <button class="seg" data-view="cardio" role="tab" aria-selected="false">Cardio</button>
+      </div>
       <ul id="historyList" class="history-list"></ul>
       <div id="historyEmpty" class="empty">
-        <p>No sessions logged yet.</p>
-        <p class="muted">After a workout, tap <b>Log today's session</b> to save it here.</p>
+        <p id="historyEmptyTitle">No sessions logged yet.</p>
+        <p id="historyEmptyHint" class="muted"></p>
       </div>
     </section>
   </main>
@@ -96,6 +129,10 @@
     <button class="tab-btn active" data-tab="workout">
       <svg class="icon" viewBox="0 0 640 640" aria-hidden="true"><path d="M96 176C96 149.5 117.5 128 144 128C170.5 128 192 149.5 192 176L192 288L448 288L448 176C448 149.5 469.5 128 496 128C522.5 128 544 149.5 544 176L544 192L560 192C586.5 192 608 213.5 608 240L608 288C625.7 288 640 302.3 640 320C640 337.7 625.7 352 608 352L608 400C608 426.5 586.5 448 560 448L544 448L544 464C544 490.5 522.5 512 496 512C469.5 512 448 490.5 448 464L448 352L192 352L192 464C192 490.5 170.5 512 144 512C117.5 512 96 490.5 96 464L96 448L80 448C53.5 448 32 426.5 32 400L32 352C14.3 352 0 337.7 0 320C0 302.3 14.3 288 32 288L32 240C32 213.5 53.5 192 80 192L96 192L96 176z"/></svg>
       <span>Workout</span>
+    </button>
+    <button class="tab-btn" data-tab="cardio">
+      <svg class="icon" viewBox="0 0 640 640" aria-hidden="true"><path d="M305 151.1L320 171.8L335 151.1C360 116.5 400.2 96 442.9 96C516.4 96 576 155.6 576 229.1L576 231.7C576 343.9 436.1 474.2 363.1 529.9C350.7 539.3 335.5 544 320 544C304.5 544 289.2 539.4 276.9 529.9C203.9 474.2 64 343.9 64 231.7L64 229.1C64 155.6 123.6 96 197.1 96C239.8 96 280 116.5 305 151.1z"/></svg>
+      <span>Cardio</span>
     </button>
     <button class="tab-btn" data-tab="history">
       <svg class="icon" viewBox="0 0 640 640" aria-hidden="true"><path d="M480 576L192 576C139 576 96 533 96 480L96 160C96 107 139 64 192 64L496 64C522.5 64 544 85.5 544 112L544 400C544 420.9 530.6 438.7 512 445.3L512 512C529.7 512 544 526.3 544 544C544 561.7 529.7 576 512 576L480 576zM192 448C174.3 448 160 462.3 160 480C160 497.7 174.3 512 192 512L448 512L448 448L192 448zM224 216C224 229.3 234.7 240 248 240L424 240C437.3 240 448 229.3 448 216C448 202.7 437.3 192 424 192L248 192C234.7 192 224 202.7 224 216zM248 288C234.7 288 224 298.7 224 312C224 325.3 234.7 336 248 336L424 336C437.3 336 448 325.3 448 312C448 298.7 437.3 288 424 288L248 288z"/></svg>
@@ -120,6 +157,16 @@
     <button id="customBtn" class="btn ghost small">＋ Create your own exercise</button>
     <ul id="resultsList" class="results"></ul>
     <button id="moreResultsBtn" class="btn ghost small hidden">Show more</button>
+  </div>
+
+  <!-- Cardio picker: the cardio exercises + your own -->
+  <div id="cardioSheet" class="sheet full" role="dialog" aria-label="Add cardio">
+    <div class="sheet-head">
+      <h2>Add Cardio</h2>
+      <button class="icon-btn close-sheet" aria-label="Close">✕</button>
+    </div>
+    <button id="customCardioBtn" class="btn ghost small">＋ Create your own cardio</button>
+    <ul id="cardioResults" class="results"></ul>
   </div>
 
   <!-- Exercise details / "more info" -->
@@ -149,7 +196,7 @@
     <div id="themeSwatches" class="swatches"></div>
   </div>
 
-  <!-- Simple text prompt (rename, new workout, custom exercise) -->
+  <!-- Simple text prompt (rename, new workout, custom exercise or cardio) -->
   <div id="formSheet" class="sheet" role="dialog">
     <div class="sheet-head">
       <h2 id="formTitle">Name</h2>
@@ -161,10 +208,10 @@
   <!-- Little pop-up message at the bottom -->
   <div id="toast" class="toast"></div>
 
-  <!-- Glow + message when every exercise is crossed off -->
+  <!-- Glow + message when every exercise (or cardio) is crossed off -->
   <div id="celebration" class="celebration" aria-live="polite">
     <div class="celebration-text">
-      <div class="celebration-title">Workout complete</div>
+      <div id="celebrationTitle" class="celebration-title">Workout complete</div>
       <div id="celebrationName" class="celebration-name"></div>
     </div>
   </div>
