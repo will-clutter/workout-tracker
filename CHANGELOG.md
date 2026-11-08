@@ -8,6 +8,7 @@ What changed in Workout Logbook, newest first.
 
 - **Added the first automated tests.** Ten tests check the small helpers the app relies on: making counts like "3 exercises", making typed text safe to show on screen, capitalizing names, setting up a fresh workout, and adding an exercise with 3 sets × 10 reps. Run them with `npm test` (needs Node.js).
 - Moved those helpers out of `js/app.js` into a new `js/logic.js` file so the tests can load them. The app works the same as before.
+- Added `CLAUDE.md` with notes on how the tests are set up.
 
 ## 2026-11-07
 
