@@ -16,8 +16,7 @@ const STORAGE_KEY = "workout-logbook-v1";
 const THUMB_DIR = "images/thumbs/";
 const PHOTO_DIR = "images/photos/";
 const RESULTS_PAGE_SIZE = 10;
-const DEFAULT_SETS = "3";
-const DEFAULT_REPS = "10";
+// DEFAULT_SETS and DEFAULT_REPS are in logic.js
 
 /* ============================================================
    DATA
@@ -29,16 +28,6 @@ let databaseById = {};
 
 // Your data. This is what gets saved on your phone.
 let state = loadState();
-
-function defaultState() {
-  const id = makeId();
-  return {
-    workouts: [{ id, name: "Your Workout", items: [] }],
-    activeWorkoutId: id,
-    customExercises: [],
-    history: []
-  };
-}
 
 // Read saved data from the browser's storage (localStorage)
 function loadState() {
@@ -59,11 +48,6 @@ function saveState() {
   }
 }
 
-// A short random ID, used to tell items apart
-function makeId() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
 // The workout currently on screen
 function activeWorkout() {
   return state.workouts.find(w => w.id === state.activeWorkoutId) || state.workouts[0];
@@ -73,27 +57,12 @@ function isInWorkout(exId) {
   return activeWorkout().items.some(i => i.exId === exId);
 }
 
-// A fresh workout entry for an exercise, with the default sets/reps
-function newItem(ex) {
-  return { uid: makeId(), exId: ex.id, sets: DEFAULT_SETS, reps: DEFAULT_REPS, weight: "", notes: "" };
-}
-
 // Look up an exercise by id, in the database or your custom ones
 function getExercise(exId) {
   return databaseById[exId] || state.customExercises.find(e => e.id === exId);
 }
 
-// "1 exercise", "3 exercises"
-function plural(count, word) {
-  return `${count} ${word}${count === 1 ? "" : "s"}`;
-}
-
-// Makes user-typed text safe to put inside HTML
-function escapeHtml(text) {
-  return String(text ?? "").replace(/[&<>"']/g, ch => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  }[ch]));
-}
+// makeId, defaultState, newItem, plural, escapeHtml and capitalize are in logic.js
 
 // Shortcut for document.getElementById
 const $ = id => document.getElementById(id);
@@ -921,10 +890,6 @@ async function deleteCustomExercise(ex) {
   closeSheet("detailSheet");
   renderResults();
   renderWorkout();
-}
-
-function capitalize(text) {
-  return text.replace(/\b\w/g, c => c.toUpperCase());
 }
 
 /* ============================================================
