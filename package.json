@@ -3,5 +3,6 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/"
-  }
+  },
+  "version": "1.0.0"
 }
