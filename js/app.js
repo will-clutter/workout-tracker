@@ -1456,7 +1456,7 @@ function showToast(message, actionLabel, onAction) {
   if (actionLabel) {
     const btn = document.createElement("button");
     btn.textContent = actionLabel;
-    btn.style.cssText = "margin-left:12px;background:none;border:none;color:var(--accent-dark);font-weight:800;padding:0";
+    btn.style.cssText = "margin-left:12px;background:none;border:none;color:var(--accent-soft);font-weight:800;padding:0";
     btn.onclick = () => { onAction(); toast.classList.remove("show"); };
     toast.appendChild(btn);
   }
