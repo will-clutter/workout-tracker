@@ -231,8 +231,25 @@ main { position: relative; }
 .tab-btn .icon { transition: transform 0.35s var(--ease); }
 /* The newly selected tab colors in a moment later, as the circle grows behind it */
 /* While gliding, the lit tab (under your finger) takes the highlight instead of the current one */
-.tabbar:not(.gliding) .tab-btn.active, .tab-btn.lit { color: var(--accent); opacity: 1; transition: opacity 0.4s 0.22s, color 0.4s 0.22s; }
-.tabbar:not(.gliding) .tab-btn.active .icon, .tab-btn.lit .icon { transform: scale(1.1); transition: transform 0.4s 0.22s var(--ease); }
+.tabbar:not(.gliding) .tab-btn.active { color: var(--accent); opacity: 1; transition: opacity 0.4s 0.22s, color 0.4s 0.22s; }
+.tabbar:not(.gliding) .tab-btn.active .icon { transform: scale(1.1); transition: transform 0.4s 0.22s var(--ease); }
+/* The lit tab reacts right away (no delay) and pops up a little more */
+.tab-btn.lit { color: var(--accent); opacity: 1; transition: opacity 0.15s, color 0.15s; }
+.tab-btn.lit .icon { transform: translateY(-2px) scale(1.25); transition: transform 0.25s var(--ease); }
+
+/* Holding the bar: it presses in slightly and the circle swells and glows */
+.tabbar { transition: scale 0.25s var(--ease); }
+.tabbar.gliding { scale: 1.03; }
+.tab-indicator { transition: scale 0.25s var(--ease), background-color 0.2s, box-shadow 0.2s; }
+.tabbar.gliding .tab-indicator {
+  scale: 1.35;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
+              0 0 14px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tabbar, .tab-indicator, .tab-btn.lit .icon { transition: none; }
+}
 
 /* The glowing circle behind the selected tab's icon.
    JavaScript sets --x and --y to the middle of the selected icon. */

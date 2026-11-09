@@ -714,7 +714,7 @@ function glideTo(button) {
   glide.target = button;
   tabButtons.forEach(b => b.classList.toggle("lit", b === button));
   // No tab under the finger: the circle goes back to the current tab
-  moveTabIndicator(button || document.querySelector(".tab-btn.active"), true, 320);
+  moveTabIndicator(button || document.querySelector(".tab-btn.active"), true, 220, true);
 }
 
 function glideTabAt(event) {
@@ -744,7 +744,7 @@ function endGlide(event) {
   tabButtons.forEach(b => b.classList.remove("lit"));
   if (target) showTab(target);
   // Make sure the circle ends up on the tab we're actually on
-  moveTabIndicator(document.querySelector(".tab-btn.active"), true, 320);
+  moveTabIndicator(document.querySelector(".tab-btn.active"), true, 220, true);
 }
 tabBar.addEventListener("pointerup", endGlide);
 tabBar.addEventListener("pointercancel", endGlide);
@@ -771,7 +771,8 @@ function iconCenter(button) {
   (with a tiny overshoot so it feels springy).
 */
 let indicatorAnim = null;
-function moveTabIndicator(button, animate, duration = 700) {
+// slide = true: glide straight across at full size (used while a finger is on the bar)
+function moveTabIndicator(button, animate, duration = 700, slide = false) {
   const to = iconCenter(button);
   const from = indicatorPos || to;
   if (animate && from.x === to.x && from.y === to.y) return; // already there
@@ -785,6 +786,13 @@ function moveTabIndicator(button, animate, duration = 700) {
   if (!animate || prefersReducedMotion()) return;
 
   const at = (p, scale) => `translate(${p.x}px, ${p.y}px) scale(${scale})`;
+  if (slide) {
+    indicatorAnim = tabIndicator.animate([
+      { transform: at(from, 1) },
+      { transform: at(to, 1) }
+    ], { duration, easing: "cubic-bezier(0.34, 1.3, 0.64, 1)" });
+    return;
+  }
   indicatorAnim = tabIndicator.animate([
     { transform: at(from, 1), easing: "cubic-bezier(0.55, 0, 1, 0.45)" },  // shrink (quick)
     { transform: at(from, 0), offset: 0.3 },
