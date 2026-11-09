@@ -213,6 +213,7 @@ main { position: relative; }
 }
 
 .tabbar {
+  touch-action: none; -webkit-user-select: none; user-select: none; /* sliding along the bar must not scroll or select */
   will-change: transform; /* keeps the bar on its own layer so it doesn't repaint with the page */
   position: fixed; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 10;
   transform: translateX(-50%);
@@ -230,8 +231,9 @@ main { position: relative; }
 .tab-btn span { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
 .tab-btn .icon { transition: transform 0.35s var(--ease); }
 /* The newly selected tab colors in a moment later, as the circle grows behind it */
-.tab-btn.active { color: var(--accent); opacity: 1; transition: opacity 0.4s 0.22s, color 0.4s 0.22s; }
-.tab-btn.active .icon { transform: scale(1.1); transition: transform 0.4s 0.22s var(--ease); }
+/* While gliding, the lit tab (under your finger) takes the highlight instead of the current one */
+.tabbar:not(.gliding) .tab-btn.active, .tab-btn.lit { color: var(--accent); opacity: 1; transition: opacity 0.4s 0.22s, color 0.4s 0.22s; }
+.tabbar:not(.gliding) .tab-btn.active .icon, .tab-btn.lit .icon { transform: scale(1.1); transition: transform 0.4s 0.22s var(--ease); }
 
 /* The glowing circle behind the selected tab's icon.
    JavaScript sets --x and --y to the middle of the selected icon. */

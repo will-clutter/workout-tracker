@@ -352,6 +352,27 @@ function suggestSearch(words, names) {
   return changed ? fixed.join(" ") : null;
 }
 
+/* ---------- Gliding across the tab bar ---------- */
+
+/*
+  Which tab is under the finger while sliding along the tab bar?
+  boxes = each tab's { left, right }; bar = the bar's { top, bottom }.
+  Sideways, a finger past either end counts as the first/last tab.
+  If it's dragged too far above or below the bar (more than `slack` px) it's
+  not on any tab, so letting go there cancels. Returns the tab's index, or -1.
+*/
+function glideTabIndex(x, y, bar, boxes, slack = 60) {
+  if (!boxes.length) return -1;
+  if (y < bar.top - slack || y > bar.bottom + slack) return -1;
+  let best = 0;
+  let bestDistance = Infinity;
+  boxes.forEach((box, i) => {
+    const distance = x < box.left ? box.left - x : x > box.right ? x - box.right : 0;
+    if (distance < bestDistance) { best = i; bestDistance = distance; }
+  });
+  return best;
+}
+
 // Lets the tests load these functions. The browser skips this line.
 if (typeof module !== "undefined") {
   module.exports = {
@@ -360,6 +381,6 @@ if (typeof module !== "undefined") {
     WHOLE_FIELDS, DECIMAL_FIELDS, sanitizeWhole, sanitizeMinSec, sanitizeDecimal, savedDecimal, cleanNumbers,
     exerciseMatches, isCardio,
     newCardioItem, INTENSITIES, cardioSummaryParts, joinDuration, splitDuration, formatDuration, buildCardioHistoryEntry, isCardioSession,
-    editDistance, suggestSearch
+    editDistance, suggestSearch, glideTabIndex
   };
 }

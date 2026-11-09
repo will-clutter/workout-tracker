@@ -680,17 +680,74 @@ $("historyList").addEventListener("click", async event => {
    TABS (Workout / Cardio / History)
    ============================================================ */
 
-const tabButtons = document.querySelectorAll(".tab-btn");
+const tabBar = document.querySelector(".tabbar");
+const tabButtons = [...document.querySelectorAll(".tab-btn")];
+
+// Show a tab's screen. The circle is moved separately, so gliding can move it early.
+function showTab(button) {
+  if (button.classList.contains("active")) return; // already on this tab
+  tabButtons.forEach(b => b.classList.toggle("active", b === button));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + button.dataset.tab));
+  window.scrollTo({ top: 0 });
+  hintCrossOff(); // only does anything on the Workout and Cardio tabs
+}
+
+// Keyboard / screen reader activation (detail is 0 for those). Touch and mouse go through gliding below.
 tabButtons.forEach(button => {
-  button.addEventListener("click", () => {
-    if (button.classList.contains("active")) return; // already on this tab
-    tabButtons.forEach(b => b.classList.toggle("active", b === button));
-    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + button.dataset.tab));
+  button.addEventListener("click", event => {
+    if (event.detail !== 0 || button.classList.contains("active")) return;
     moveTabIndicator(button, true);
-    window.scrollTo({ top: 0 });
-    hintCrossOff(); // only does anything on the Workout and Cardio tabs
+    showTab(button);
   });
 });
+
+/*
+  Hold and glide: press on the bar and slide sideways. The tab under your finger
+  lights up and the circle follows, but the screen only changes when you let go.
+  A plain tap is the same thing with no sliding. Letting go well above or below
+  the bar (or the browser cancelling the touch) leaves you on the current tab.
+*/
+let glide = null; // { id, target } while a finger is down on the bar
+
+function glideTo(button) {
+  if (glide.target === button) return;
+  glide.target = button;
+  tabButtons.forEach(b => b.classList.toggle("lit", b === button));
+  // No tab under the finger: the circle goes back to the current tab
+  moveTabIndicator(button || document.querySelector(".tab-btn.active"), true, 320);
+}
+
+function glideTabAt(event) {
+  const bar = tabBar.getBoundingClientRect();
+  const i = glideTabIndex(event.clientX, event.clientY, bar, tabButtons.map(b => b.getBoundingClientRect()));
+  return tabButtons[i] || null;
+}
+
+tabBar.addEventListener("pointerdown", event => {
+  if (glide || (event.pointerType === "mouse" && event.button !== 0)) return;
+  glide = { id: event.pointerId, target: undefined };
+  tabBar.setPointerCapture(event.pointerId);
+  tabBar.classList.add("gliding");
+  glideTo(glideTabAt(event));
+});
+
+tabBar.addEventListener("pointermove", event => {
+  if (glide && event.pointerId === glide.id) glideTo(glideTabAt(event));
+});
+
+function endGlide(event) {
+  if (!glide || event.pointerId !== glide.id) return;
+  // Only a real let-go on a tab switches (the browser can cancel the touch)
+  const target = event.type === "pointerup" ? glideTabAt(event) : null;
+  glide = null;
+  tabBar.classList.remove("gliding");
+  tabButtons.forEach(b => b.classList.remove("lit"));
+  if (target) showTab(target);
+  // Make sure the circle ends up on the tab we're actually on
+  moveTabIndicator(document.querySelector(".tab-btn.active"), true, 320);
+}
+tabBar.addEventListener("pointerup", endGlide);
+tabBar.addEventListener("pointercancel", endGlide);
 
 /* ---------- The circle behind the selected tab ---------- */
 
@@ -713,10 +770,13 @@ function iconCenter(button) {
   shrinks to nothing on the old tab → jumps → grows on the new tab
   (with a tiny overshoot so it feels springy).
 */
-function moveTabIndicator(button, animate) {
+let indicatorAnim = null;
+function moveTabIndicator(button, animate, duration = 700) {
   const to = iconCenter(button);
   const from = indicatorPos || to;
+  if (animate && from.x === to.x && from.y === to.y) return; // already there
   indicatorPos = to;
+  if (indicatorAnim) indicatorAnim.cancel(); // sliding quickly: drop the old one
 
   // Final resting spot (used once the animation ends)
   tabIndicator.style.setProperty("--x", to.x + "px");
@@ -725,12 +785,12 @@ function moveTabIndicator(button, animate) {
   if (!animate || prefersReducedMotion()) return;
 
   const at = (p, scale) => `translate(${p.x}px, ${p.y}px) scale(${scale})`;
-  tabIndicator.animate([
+  indicatorAnim = tabIndicator.animate([
     { transform: at(from, 1), easing: "cubic-bezier(0.55, 0, 1, 0.45)" },  // shrink (quick)
     { transform: at(from, 0), offset: 0.3 },
     { transform: at(to, 0),   offset: 0.32, easing: "cubic-bezier(0.34, 1.3, 0.64, 1)" }, // grow with a soft bounce
     { transform: at(to, 1) }
-  ], { duration: 700 });
+  ], { duration });
 }
 
 // Put the circle in place when the app opens, and keep it there if the window resizes
