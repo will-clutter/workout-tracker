@@ -107,7 +107,6 @@ body::before {
     radial-gradient(45% 40% at 90% 85%, var(--glow-2), transparent 70%),
     radial-gradient(30% 25% at 85% 25%, var(--glow-2), transparent 70%),
     var(--bg);
-  animation: drift 24s ease-in-out infinite alternate;
 }
 
 body { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); min-height: 100vh; }
@@ -132,6 +131,10 @@ h2 { font-size: 20px; margin: 0; }
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 30px rgba(0, 0, 0, 0.35);
 }
+
+/* Cards in the lists skip the blur: with many on screen it's the heaviest thing
+   to draw, and over this soft background the see-through fill looks the same. */
+.card.glass, .session.glass { backdrop-filter: none; -webkit-backdrop-filter: none; }
 
 /* ---------- Buttons ---------- */
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -616,7 +619,6 @@ main { position: relative; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 @keyframes glow { 0% { opacity: 0; } 15% { opacity: 1; } 35% { opacity: 0.7; } 55% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes rise { from { transform: translateY(10px) scale(0.94); } 20% { transform: none; } to { transform: scale(1.03); } }
-@keyframes drift { from { transform: translate(0, 0); } to { transform: translate(3%, -3%); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
