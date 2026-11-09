@@ -206,16 +206,16 @@ function buildExerciseCard(item) {
       <div class="stats">
         <div class="stat">
           <label>Sets</label>
-          <input type="number" inputmode="numeric" min="0" data-field="sets" value="${escapeHtml(item.sets)}">
+          <input type="text" inputmode="numeric" autocomplete="off" data-field="sets" value="${escapeHtml(item.sets)}">
         </div>
         <div class="stat">
           <label>Reps</label>
-          <input type="number" inputmode="numeric" min="0" data-field="reps" value="${escapeHtml(item.reps)}">
+          <input type="text" inputmode="numeric" autocomplete="off" data-field="reps" value="${escapeHtml(item.reps)}">
         </div>
         <div class="stat">
           <label>Weight</label>
           <div class="weight-wrap">
-            <input type="number" inputmode="decimal" min="0" step="any" placeholder="—" data-field="weight" value="${escapeHtml(item.weight)}">
+            <input type="text" inputmode="decimal" autocomplete="off" placeholder="—" data-field="weight" value="${escapeHtml(item.weight)}">
             <span class="unit">lbs</span>
           </div>
         </div>
@@ -265,6 +265,22 @@ function handleCardClick(event) {
   }
 }
 
+// Number boxes only take positive numbers. Anything else is removed as it's typed or pasted.
+// (The cursor stays where it was, so fixing a box doesn't make it jump.)
+function cleanBox(box) {
+  const { field, dur } = box.dataset;
+  let clean = box.value;
+  if (dur === "m" || dur === "s") clean = sanitizeMinSec(box.value); // minutes and seconds stop at 59
+  else if (dur || WHOLE_FIELDS.includes(field)) clean = sanitizeWhole(box.value);
+  else if (DECIMAL_FIELDS.includes(field)) clean = sanitizeDecimal(box.value);
+  if (clean === box.value) return;
+  const cursor = box.selectionStart ?? box.value.length;
+  const removed = box.value.length - clean.length;
+  box.value = clean;
+  const newCursor = Math.max(0, Math.min(clean.length, cursor - removed));
+  box.setSelectionRange(newCursor, newCursor);
+}
+
 // Save whenever you type in a box (sets / reps / weight / duration / notes...)
 function handleCardInput(event) {
   const { field, dur } = event.target.dataset;
@@ -272,10 +288,13 @@ function handleCardInput(event) {
   const card = event.target.closest(".card");
   const item = itemForCard(card);
   if (!item) return;
+  cleanBox(event.target);
   if (dur) {
     // One of the hours / minutes / seconds boxes: save the total in seconds
     const box = key => card.querySelector(`[data-dur="${key}"]`).value;
     item.durationSec = joinDuration(box("h"), box("m"), box("s"));
+  } else if (DECIMAL_FIELDS.includes(field)) {
+    item[field] = savedDecimal(event.target.value); // "0" and "0." are kept in the box while you type, but saved as empty
   } else {
     item[field] = event.target.value;
   }
@@ -283,9 +302,16 @@ function handleCardInput(event) {
   card.querySelector(".row-summary").innerHTML = listForCard(card).summary(item); // keep the summary line up to date
 }
 
+// When you leave a weight / distance box, tidy it so what you see is what's saved ("0." becomes empty, "5." becomes 5)
+function handleCardChange(event) {
+  const box = event.target;
+  if (DECIMAL_FIELDS.includes(box.dataset.field)) box.value = savedDecimal(box.value);
+}
+
 ["cards", "cardioCards"].forEach(id => {
   $(id).addEventListener("click", handleCardClick);
   $(id).addEventListener("input", handleCardInput);
+  $(id).addEventListener("change", handleCardChange);
 });
 
 function removeItem(item, card) {
@@ -438,7 +464,7 @@ function cardioStatHtml(label, field, value, unit, inputmode = "decimal") {
   return `<div class="stat">
     <label>${label}</label>
     <div class="weight-wrap">
-      <input type="number" inputmode="${inputmode}" min="0" step="any" placeholder="—" data-field="${field}" value="${escapeHtml(value)}">
+      <input type="text" inputmode="${inputmode}" autocomplete="off" placeholder="—" data-field="${field}" value="${escapeHtml(value)}">
       <span class="unit">${unit}</span>
     </div>
   </div>`;
@@ -448,7 +474,7 @@ function cardioStatHtml(label, field, value, unit, inputmode = "decimal") {
 function durationStatHtml(durationSec) {
   const parts = splitDuration(durationSec);
   const box = (key, unit) => `<div class="dur-part">
-      <input type="number" inputmode="numeric" min="0" placeholder="0" data-dur="${key}" value="${parts[key]}" aria-label="${unit}">
+      <input type="text" inputmode="numeric" autocomplete="off" placeholder="0" data-dur="${key}" value="${parts[key]}" aria-label="${unit}">
       <span class="unit">${unit}</span>
     </div>`;
   return `<div class="stat duration-stat">

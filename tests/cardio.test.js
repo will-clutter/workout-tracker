@@ -79,10 +79,6 @@ test("formatDuration: minutes only, seconds only, and mixed", () => {
   assert.equal(formatDuration(2 * 3600), "2h");
 });
 
-test("formatDuration: 90 minutes reads as 1h 30m", () => {
-  assert.equal(formatDuration(joinDuration("", "90", "")), "1h 30m");
-});
-
 test("formatDuration: 0 or blank gives nothing", () => {
   assert.equal(formatDuration(0), "");
   assert.equal(formatDuration(""), "");

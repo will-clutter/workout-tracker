@@ -328,6 +328,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ---------- Cardio cards ---------- */
 .cardio-stats { grid-template-columns: 1fr 1fr; }
+.cardio-stats .stat:last-child { grid-column: 1 / -1; } /* Distance fills the row instead of leaving a gap */
 /* Duration: hours : minutes : seconds, across the whole row */
 .duration-stat { grid-column: 1 / -1; }
 .dur-wrap { display: flex; align-items: flex-start; gap: 6px; }

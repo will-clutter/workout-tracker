@@ -2,6 +2,25 @@
 
 What changed in Workout Logbook, newest first.
 
+## 2026-11-09
+
+### Changed
+
+- **Number boxes only take positive numbers.** Sets, reps, heart rate, calories and the hours / minutes / seconds boxes take whole numbers. Weight and distance also take decimals, like 2.5 or 0.5. You can't type a minus sign, a plus sign, an "e" or letters, and pasting something like "-12abc" keeps just the number. Zero isn't allowed either, but you can still type "0." on the way to "0.5". An empty box is always fine, and Notes still take anything. Your cursor stays where it was when a wrong key is ignored.
+- **Minutes and seconds stop at 59.** In the cardio Duration box you can no longer type 60 or more in the minutes or seconds parts; the key is simply ignored (typing 6 then 0 stays at 6). Hours still take any number, so 90 minutes is entered as 1 hr 30 min. Durations you already saved aren't affected.
+- **The Distance box fills the row.** On a cardio card it used to sit at half width with a gap beside it; it now stretches across.
+- Numbers that were already saved as negative (or as nonsense) are cleaned up the next time the app opens, on your workout, your cardio list and in History.
+
+### Fixed
+
+- **One damaged History entry could wipe all your saved data.** If a single History entry was broken, the app threw away everything and started fresh. It now skips or repairs the broken entry and keeps the rest.
+- A cardio duration that was infinite or nonsense could show up as "Infinityh". It now shows nothing, and very large durations are capped at 999,999 hours.
+- Odd saved data (a workout with no exercise list, an exercise with no muscle list) no longer causes errors in search or when logging.
+
+### Behind the scenes
+
+- **Added 66 more tests** (139 in total), in a new file `tests/edgecases.test.js`, that try to break things on purpose: negative, zero, huge and nonsense numbers, damaged saved data, strange search text, and the typo-suggestion limits. Also removed one older test ("90 minutes reads as 1h 30m") that checked something you can no longer type.
+
 ## 2026-11-08
 
 ### Added
