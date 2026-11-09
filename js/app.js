@@ -755,13 +755,17 @@ const tabIndicator = $("tabIndicator");
 let indicatorPos = null; // where the circle is now
 
 // Middle of a tab's icon, measured from the tab bar's top-left corner
+// The bar can be mid-way through its press-in scale, so screen distances are divided
+// by that scale to get back to the bar's own (unscaled) coordinates.
 function iconCenter(button) {
   const bar = tabIndicator.parentElement;
   const barBox = bar.getBoundingClientRect();
   const iconBox = button.querySelector(".icon").getBoundingClientRect();
+  const sx = barBox.width / bar.offsetWidth || 1;
+  const sy = barBox.height / bar.offsetHeight || 1;
   return {
-    x: iconBox.left + iconBox.width / 2 - barBox.left - bar.clientLeft,
-    y: iconBox.top + iconBox.height / 2 - barBox.top - bar.clientTop
+    x: (iconBox.left + iconBox.width / 2 - barBox.left) / sx - bar.clientLeft,
+    y: (iconBox.top + iconBox.height / 2 - barBox.top) / sy - bar.clientTop
   };
 }
 

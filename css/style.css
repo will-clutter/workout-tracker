@@ -215,7 +215,7 @@ main { position: relative; }
   touch-action: none; -webkit-user-select: none; user-select: none; /* sliding along the bar must not scroll or select */
   will-change: transform; /* keeps the bar on its own layer so it doesn't repaint with the page */
   position: fixed; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 10;
-  transform: translateX(-50%);
+  translate: -50% 0; /* (not transform, so the press-in `scale` below doesn't stretch this offset) */
   width: min(360px, calc(100% - 32px)); height: 56px;
   display: flex; padding: 4px;
   border-radius: 18px;
@@ -235,32 +235,37 @@ main { position: relative; }
 .tabbar:not(.gliding) .tab-btn.active .icon { transform: scale(1.1); transition: transform 0.4s 0.22s var(--ease); }
 /* The lit tab reacts right away (no delay) and pops up a little more */
 .tab-btn.lit { color: var(--accent); opacity: 1; transition: opacity 0.15s, color 0.15s; }
-.tab-btn.lit .icon { transform: translateY(-2px) scale(1.25); transition: transform 0.25s var(--ease); }
+.tab-btn.lit .icon { transform: scale(1.25); transition: transform 0.25s var(--ease); }
 
 /* Holding the bar: it presses in slightly and the circle swells and glows */
 .tabbar { transition: scale 0.25s var(--ease); }
 .tabbar.gliding { scale: 1.03; }
-.tab-indicator { transition: scale 0.25s var(--ease), background-color 0.2s, box-shadow 0.2s; }
-.tabbar.gliding .tab-indicator {
+.tabbar.gliding .tab-indicator::before {
   scale: 1.35;
   background: color-mix(in srgb, var(--accent) 35%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
               0 0 14px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
-  .tabbar, .tab-indicator, .tab-btn.lit .icon { transition: none; }
+  .tabbar, .tab-indicator::before, .tab-btn.lit .icon { transition: none; }
 }
 
 /* The glowing circle behind the selected tab's icon.
-   JavaScript sets --x and --y to the middle of the selected icon. */
+   The element itself is just a point that JavaScript moves (--x and --y are the middle
+   of the selected icon); the circle is drawn by ::before, so swelling it can't move it. */
 .tab-indicator {
   position: absolute; left: 0; top: 0; z-index: 0;
-  width: 34px; height: 34px; margin: -17px 0 0 -17px;
+  width: 0; height: 0;
+  transform: translate(var(--x, -100px), var(--y, 0px));
+  pointer-events: none;
+}
+.tab-indicator::before {
+  content: ""; position: absolute; left: -17px; top: -17px;
+  width: 34px; height: 34px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--accent) 22%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
-  transform: translate(var(--x, -100px), var(--y, 0px));
-  pointer-events: none;
+  transition: scale 0.25s var(--ease), background-color 0.2s, box-shadow 0.2s;
 }
 
 /* ---------- Workout page ---------- */
