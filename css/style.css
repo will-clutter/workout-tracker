@@ -134,7 +134,13 @@ h2 { font-size: 20px; margin: 0; }
 
 /* Cards in the lists skip the blur: with many on screen it's the heaviest thing
    to draw, and over this soft background the see-through fill looks the same. */
-.card.glass, .session.glass { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.card.glass, .session.glass {
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 12px rgba(0, 0, 0, 0.3); /* smaller shadow, cheaper to draw */
+}
+/* Cards far off-screen aren't laid out or painted until you scroll near them.
+   The size is a rough guess for a closed card; the browser remembers the real one. */
+.card, .session { content-visibility: auto; contain-intrinsic-size: auto 72px; }
 
 /* ---------- Buttons ---------- */
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -207,6 +213,7 @@ main { position: relative; }
 }
 
 .tabbar {
+  will-change: transform; /* keeps the bar on its own layer so it doesn't repaint with the page */
   position: fixed; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 10;
   transform: translateX(-50%);
   width: min(360px, calc(100% - 32px)); height: 56px;
