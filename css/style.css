@@ -186,8 +186,22 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .chev { color: var(--muted); }
 
 /* ---------- Tabs ---------- */
-.tab { display: none; }
-.tab.active { display: block; animation: fadeUp 0.35s var(--ease); }
+/* Inactive tabs are hidden with visibility instead of display:none, so the
+   browser keeps their layout ready and switching back doesn't rebuild the whole
+   page (that rebuild was the lag). They're taken out of the page flow (absolute,
+   zero height) so they add no scroll space, and their looping animations are paused. */
+main { position: relative; }
+.tab {
+  position: absolute; top: 0; left: 16px; right: 16px;
+  height: 0; overflow: hidden;
+  visibility: hidden; pointer-events: none;
+}
+.tab:not(.active) *, .tab:not(.active) *::before, .tab:not(.active) *::after { animation-play-state: paused !important; }
+.tab.active {
+  position: static; height: auto; overflow: visible;
+  visibility: visible; pointer-events: auto;
+  animation: fadeUp 0.35s var(--ease);
+}
 
 .tabbar {
   position: fixed; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 10;
