@@ -17,9 +17,27 @@ const isFreshState = state =>
 test("parseSavedState: valid saved data comes back as-is", () => {
   const saved = {
     workouts: [{ id: "a", name: "Legs", items: [] }], activeWorkoutId: "a", customExercises: [], history: [],
-    cardio: { items: [{ uid: "c1", exId: "Stairmaster", duration: "20" }] }
+    cardio: { items: [{ uid: "c1", exId: "Stairmaster", durationSec: 1200 }] }
   };
   assert.deepEqual(parseSavedState(JSON.stringify(saved)), saved);
+});
+
+test("parseSavedState: cardio saved with whole minutes is changed to seconds", () => {
+  const saved = {
+    workouts: [{ id: "a", name: "Legs", items: [] }], activeWorkoutId: "a", customExercises: [],
+    cardio: { items: [{ uid: "c1", exId: "Stairmaster", duration: "25" }, { uid: "c2", exId: "Skating", duration: "" }] },
+    history: [
+      { id: "h1", type: "cardio", workoutName: "Cardio", items: [{ name: "Stairmaster", duration: "25", done: true }] },
+      { id: "h2", workoutName: "Legs", items: [{ name: "Squat", sets: "3", reps: "10", done: true }] }
+    ]
+  };
+  const loaded = parseSavedState(JSON.stringify(saved));
+  assert.deepEqual(loaded.cardio.items, [
+    { uid: "c1", exId: "Stairmaster", durationSec: 1500 },
+    { uid: "c2", exId: "Skating", durationSec: "" }
+  ]);
+  assert.deepEqual(loaded.history[0].items[0], { name: "Stairmaster", durationSec: 1500, done: true });
+  assert.deepEqual(loaded.history[1], saved.history[1]); // workout sessions are left alone
 });
 
 test("parseSavedState: data saved before the Cardio tab gets an empty cardio list", () => {

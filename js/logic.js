@@ -30,7 +30,7 @@ function newItem(ex) {
 
 // A fresh cardio entry. Every field starts empty; empty fields aren't shown.
 function newCardioItem(ex) {
-  return { uid: makeId(), exId: ex.id, duration: "", intensity: "", heartRate: "", calories: "", distance: "", notes: "" };
+  return { uid: makeId(), exId: ex.id, durationSec: "", intensity: "", heartRate: "", calories: "", distance: "", notes: "" };
 }
 
 // "1 exercise", "3 exercises"
@@ -57,6 +57,9 @@ function parseSavedState(text) {
     const saved = JSON.parse(text);
     if (saved && Array.isArray(saved.workouts) && saved.workouts.length > 0) {
       if (!saved.cardio || !Array.isArray(saved.cardio.items)) saved.cardio = { items: [] }; // saved before the Cardio tab existed
+      // Duration used to be whole minutes; now it's seconds
+      const cardioHistory = (saved.history || []).filter(isCardioSession);
+      [saved.cardio, ...cardioHistory].forEach(list => list.items.forEach(minutesToSeconds));
       return saved;
     }
   } catch (err) {
@@ -98,16 +101,49 @@ function buildHistoryEntry(workout, findName, now = new Date()) {
 const INTENSITIES = ["Low", "Medium", "High"];
 
 // The filled-in cardio fields, ready to show: ["30 min", "High intensity", "145 bpm", "320 cal", "2.5 mi"].
-// Anything left empty is skipped, so an untouched entry gives [].
+// Anything left empty or set to 0 is skipped, so an untouched entry gives [].
 function cardioSummaryParts(item) {
-  const has = value => String(value ?? "").trim() !== "";
+  const positive = value => Number(value) > 0; // blank, 0 and nonsense are all "not filled in"
   const parts = [];
-  if (has(item.duration)) parts.push(`${item.duration} min`);
-  if (has(item.intensity)) parts.push(`${item.intensity} intensity`);
-  if (has(item.heartRate)) parts.push(`${item.heartRate} bpm`);
-  if (has(item.calories)) parts.push(`${item.calories} cal`);
-  if (has(item.distance)) parts.push(`${item.distance} mi`);
+  const seconds = item.durationSec ?? (positive(item.duration) ? item.duration * 60 : ""); // older entries had minutes
+  if (positive(seconds)) parts.push(formatDuration(seconds));
+  if (String(item.intensity ?? "").trim() !== "") parts.push(`${item.intensity} intensity`);
+  if (positive(item.heartRate)) parts.push(`${item.heartRate} bpm`);
+  if (positive(item.calories)) parts.push(`${item.calories} cal`);
+  if (positive(item.distance)) parts.push(`${item.distance} mi`);
   return parts;
+}
+
+/* ---------- Duration (stored as seconds) ---------- */
+
+// The three boxes on a card → total seconds. Blank boxes count as 0; a total of 0 is "" (not filled in).
+function joinDuration(h, m, s) {
+  const n = value => Math.max(0, Number(value) || 0);
+  const total = Math.round(n(h) * 3600 + n(m) * 60 + n(s));
+  return total > 0 ? total : "";
+}
+
+// Total seconds → the three boxes. Empty or 0 gives three blank boxes.
+function splitDuration(sec) {
+  const total = Math.round(Number(sec) || 0);
+  if (total <= 0) return { h: "", m: "", s: "" };
+  return { h: Math.floor(total / 3600), m: Math.floor(total / 60) % 60, s: total % 60 };
+}
+
+// "25 min", "45 sec", "25m 30s", "1h 5m", "1h 5m 30s". Zero parts are left out; 0 or blank gives "".
+function formatDuration(sec) {
+  const { h, m, s } = splitDuration(sec);
+  if (h === "") return "";
+  if (!h && !s) return `${m} min`;
+  if (!h && !m) return `${s} sec`;
+  return [h && `${h}h`, m && `${m}m`, s && `${s}s`].filter(Boolean).join(" ");
+}
+
+// Converts an entry saved with whole minutes (duration) to seconds (durationSec)
+function minutesToSeconds(item) {
+  if (!("duration" in item)) return;
+  if (item.durationSec === undefined) item.durationSec = joinDuration(0, item.duration, 0);
+  delete item.duration;
 }
 
 // A History entry for your cardio list. findName(exId) gives an exercise's name.
@@ -119,7 +155,7 @@ function buildCardioHistoryEntry(items, findName, now = new Date()) {
     workoutName: "Cardio",
     items: items.map(item => ({
       name: findName(item.exId) || "Unknown exercise",
-      duration: item.duration, intensity: item.intensity, heartRate: item.heartRate,
+      durationSec: item.durationSec, intensity: item.intensity, heartRate: item.heartRate,
       calories: item.calories, distance: item.distance, notes: item.notes,
       done: Boolean(item.doneAt)
     }))
@@ -225,7 +261,7 @@ if (typeof module !== "undefined") {
     DEFAULT_SETS, DEFAULT_REPS, makeId, defaultState, newItem, plural, escapeHtml, capitalize,
     parseSavedState, findActiveWorkout, hasExercise, findExercise, buildHistoryEntry, clearCrossOffsFromOtherDays,
     exerciseMatches, isCardio,
-    newCardioItem, INTENSITIES, cardioSummaryParts, buildCardioHistoryEntry, isCardioSession,
+    newCardioItem, INTENSITIES, cardioSummaryParts, joinDuration, splitDuration, formatDuration, buildCardioHistoryEntry, isCardioSession,
     editDistance, suggestSearch
   };
 }

@@ -267,12 +267,18 @@ function handleCardClick(event) {
 
 // Save whenever you type in a box (sets / reps / weight / duration / notes...)
 function handleCardInput(event) {
-  const field = event.target.dataset.field;
-  if (!field) return;
+  const { field, dur } = event.target.dataset;
+  if (!field && !dur) return;
   const card = event.target.closest(".card");
   const item = itemForCard(card);
   if (!item) return;
-  item[field] = event.target.value;
+  if (dur) {
+    // One of the hours / minutes / seconds boxes: save the total in seconds
+    const box = key => card.querySelector(`[data-dur="${key}"]`).value;
+    item.durationSec = joinDuration(box("h"), box("m"), box("s"));
+  } else {
+    item[field] = event.target.value;
+  }
   saveState();
   card.querySelector(".row-summary").innerHTML = listForCard(card).summary(item); // keep the summary line up to date
 }
@@ -417,9 +423,12 @@ function renderCardio() {
   hintCrossOff();
 }
 
-// "30 min · High intensity · 145 bpm" with the numbers in bold. Empty if nothing's filled in.
+// "1h 30m · High intensity · 145 bpm" with the numbers (or the intensity) in bold. Empty if nothing's filled in.
 function cardioSummaryHtml(item) {
-  const parts = cardioSummaryParts(item).map(part => escapeHtml(part).replace(/^(\S+)/, "<b>$1</b>"));
+  const bold = part => /\d/.test(part)
+    ? part.replace(/(\d[\d.,]*)/g, "<b>$1</b>")
+    : part.replace(/^(\S+)/, "<b>$1</b>");
+  const parts = cardioSummaryParts(item).map(part => bold(escapeHtml(part)));
   if (item.notes) parts.push(ICONS.note);
   return parts.join(" · ");
 }
@@ -431,6 +440,21 @@ function cardioStatHtml(label, field, value, unit, inputmode = "decimal") {
     <div class="weight-wrap">
       <input type="number" inputmode="${inputmode}" min="0" step="any" placeholder="—" data-field="${field}" value="${escapeHtml(value)}">
       <span class="unit">${unit}</span>
+    </div>
+  </div>`;
+}
+
+// The Duration box: hours : minutes : seconds. Any of them can be left blank.
+function durationStatHtml(durationSec) {
+  const parts = splitDuration(durationSec);
+  const box = (key, unit) => `<div class="dur-part">
+      <input type="number" inputmode="numeric" min="0" placeholder="0" data-dur="${key}" value="${parts[key]}" aria-label="${unit}">
+      <span class="unit">${unit}</span>
+    </div>`;
+  return `<div class="stat duration-stat">
+    <label>Duration</label>
+    <div class="dur-wrap">
+      ${box("h", "hr")}<span class="dur-sep">:</span>${box("m", "min")}<span class="dur-sep">:</span>${box("s", "sec")}
     </div>
   </div>`;
 }
@@ -457,7 +481,7 @@ function buildCardioCard(item) {
 
     <div class="editor"><div class="editor-inner"><div class="editor-content">
       <div class="stats cardio-stats">
-        ${cardioStatHtml("Duration", "duration", item.duration, "min", "numeric")}
+        ${durationStatHtml(item.durationSec)}
         ${cardioStatHtml("Heart rate", "heartRate", item.heartRate, "bpm", "numeric")}
         ${cardioStatHtml("Calories", "calories", item.calories, "cal", "numeric")}
         ${cardioStatHtml("Distance", "distance", item.distance, "mi")}

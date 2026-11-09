@@ -15,8 +15,15 @@ What changed in Workout Logbook, newest first.
 - **A friendlier empty screen.** When your workout or cardio list has nothing in it, a quiet "Nothing here yet!" box shows where the cards would be. It doesn't appear when you've simply crossed everything off.
 - **Cardio exercises no longer show up in the Workout tab's search**, since they now have their own tab.
 - The bottom bar is a little wider to fit the third tab.
+- **Cardio duration takes hours, minutes and seconds.** The Duration box now has three parts (hr : min : sec), and you can leave any of them blank. It reads in words and skips the parts you didn't use: "25 min", "25m 30s", "1h 5m 30s". Typing 90 in minutes reads as "1h 30m". Cardio you already entered in whole minutes is kept and shows the same as before.
+
+### Fixed
+
+- In cardio, a duration, heart rate, calories or distance set to **0** showed up on the card and in History. Zero is now treated as "not filled in" and isn't shown.
 
 ### Behind the scenes
+
+- **Added 8 more tests** (74 in total) for hiding zeros, the new duration format, and changing cardio saved in minutes to the new format.
 
 - **Added 22 more tests** (66 in total) for the new cardio entries (what's shown when only some fields are filled in, how they're saved to History, and how data saved before the Cardio tab still loads) and for the typo suggestions.
 - Crossing off, removing and adding now share the same code for workouts and cardio, so both tabs behave the same way.

@@ -328,6 +328,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ---------- Cardio cards ---------- */
 .cardio-stats { grid-template-columns: 1fr 1fr; }
+/* Duration: hours : minutes : seconds, across the whole row */
+.duration-stat { grid-column: 1 / -1; }
+.dur-wrap { display: flex; align-items: flex-start; gap: 6px; }
+/* Each part: the number, with its unit (hr / min / sec) small underneath */
+.dur-part { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.dur-part input { text-align: center; }
+.dur-part .unit { font-size: 11px; margin-top: -2px; }
+.dur-sep { color: var(--muted); font-size: 20px; font-weight: 700; line-height: 1.6; }
 .intensity { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
 .intensity-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-right: 2px; }
 .intensity .chip { flex: 1; text-transform: none; }
