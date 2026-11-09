@@ -45,7 +45,7 @@ Open that link on your phone and use **Add to Home Screen** to get an app icon.
 ## Credits
 Icons: Font Awesome Free (fontawesome.com), CC BY 4.0.
 
-Heading font: [Cinzel](https://fonts.google.com/specimen/Cinzel) by Natanael Gama,
+Heading font: [Outfit](https://fonts.google.com/specimen/Outfit) by the Outfit Project Authors,
 via Google Fonts, licensed under the [SIL Open Font License 1.1](https://openfontlicense.org).
 
 Exercise data and photos (resized and converted to WebP): [free-exercise-db](https://github.com/yuhonas/free-exercise-db)
