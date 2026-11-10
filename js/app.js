@@ -182,6 +182,13 @@ function summaryHtml(item) {
   return parts.join(" · ") + (item.notes ? ` · ${ICONS.note}` : "");
 }
 
+// The tap version of the cross-off swipe, for anyone who can't (or would rather not) swipe
+function doneButtonHtml(item) {
+  return item.doneAt
+    ? `<button class="btn small done-btn" data-action="done">Mark not done</button>`
+    : `<button class="btn small primary done-btn" data-action="done">✓ Mark done</button>`;
+}
+
 // One exercise card in the workout
 function buildExerciseCard(item) {
   const exercise = getExercise(item.exId);
@@ -221,6 +228,7 @@ function buildExerciseCard(item) {
         </div>
       </div>
       <textarea class="notes" data-field="notes" placeholder="Notes (e.g. last set felt heavy, try 95 next time)">${escapeHtml(item.notes)}</textarea>
+      ${doneButtonHtml(item)}
       <div class="editor-actions">
         <button class="btn small" data-action="info">ⓘ More info</button>
         <button class="btn small danger" data-action="remove">Remove</button>
@@ -249,6 +257,7 @@ function handleCardClick(event) {
     button.setAttribute("aria-expanded", nowOpen);
     if (nowOpen) openCards.add(item.uid); else openCards.delete(item.uid);
   }
+  if (button.dataset.action === "done") setDone(card, !item.doneAt);
   if (button.dataset.action === "info") openDetail(item.exId, { target: list.name, fromCard: true });
   if (button.dataset.action === "remove") removeItem(item, card);
   if (button.dataset.action === "intensity") {
@@ -517,6 +526,7 @@ function buildCardioCard(item) {
         ${INTENSITIES.map(level => `<button type="button" class="chip ${item.intensity === level ? "on" : ""}" data-action="intensity" data-level="${level}" aria-pressed="${item.intensity === level}">${level}</button>`).join("")}
       </div>
       <textarea class="notes" data-field="notes" placeholder="Notes (e.g. intervals, incline 8)">${escapeHtml(item.notes)}</textarea>
+      ${doneButtonHtml(item)}
       <div class="editor-actions">
         <button class="btn small" data-action="info">ⓘ More info</button>
         <button class="btn small danger" data-action="remove">Remove</button>
@@ -686,7 +696,10 @@ const tabButtons = [...document.querySelectorAll(".tab-btn")];
 // Show a tab's screen. The circle is moved separately, so gliding can move it early.
 function showTab(button) {
   if (button.classList.contains("active")) return; // already on this tab
-  tabButtons.forEach(b => b.classList.toggle("active", b === button));
+  tabButtons.forEach(b => {
+    b.classList.toggle("active", b === button);
+    if (b === button) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  });
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + button.dataset.tab));
   window.scrollTo({ top: 0 });
   hintCrossOff(); // only does anything on the Workout and Cardio tabs
@@ -815,15 +828,37 @@ window.addEventListener("resize", placeTabIndicator);
    ============================================================ */
 
 const openSheets = []; // a stack, so a sheet can open on top of another
+const sheetOpeners = {}; // which element had focus before each sheet opened, so focus can go back
+
+// Screen readers: each sheet is a modal dialog, and can take focus itself when it opens
+document.querySelectorAll(".sheet").forEach(sheet => {
+  sheet.setAttribute("aria-modal", "true");
+  sheet.tabIndex = -1;
+});
+
+// While any sheet is open, the page and tab bar can't be reached with Tab or a screen reader
+function setPageInert(inert) {
+  document.querySelector("main").inert = inert;
+  document.querySelector(".tabbar").inert = inert;
+}
 
 function openSheet(id) {
   const sheet = $(id);
-  if (!openSheets.includes(id)) openSheets.push(id);
+  if (!openSheets.includes(id)) {
+    sheetOpeners[id] = document.activeElement;
+    openSheets.push(id);
+  }
+  setPageInert(true);
   // The newest sheet sits on top
   sheet.style.zIndex = 30 + openSheets.length;
   sheet.scrollTop = 0;
   sheet.classList.remove("head-hidden"); // always open with the header showing
-  requestAnimationFrame(() => sheet.classList.add("open"));
+  requestAnimationFrame(() => {
+    sheet.classList.add("open");
+    // Focus the panel itself (not a field) so phones don't pop the keyboard. It has to be
+    // visible first, which is why this happens after the "open" class goes on.
+    sheet.focus({ preventScroll: true });
+  });
   $("backdrop").classList.add("show");
   document.body.style.overflow = "hidden";
 }
@@ -832,13 +867,22 @@ function closeSheet(id) {
   $(id).classList.remove("open");
   const index = openSheets.indexOf(id);
   if (index !== -1) openSheets.splice(index, 1);
+  const opener = sheetOpeners[id];
+  delete sheetOpeners[id];
   if (openSheets.length === 0) {
+    setPageInert(false);
+    if (opener && opener.isConnected) opener.focus({ preventScroll: true });
     $("backdrop").classList.remove("show");
     document.body.style.overflow = "";
     hintCrossOff(); // e.g. back from adding your first exercises by swiping
   }
   if (id === "formSheet" && formResolve) { formResolve(null); formResolve = null; }
 }
+
+// Escape closes the top sheet
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && openSheets.length) closeSheet(openSheets[openSheets.length - 1]);
+});
 
 // Tapping the dark background closes the top sheet
 $("backdrop").addEventListener("click", () => {
@@ -1468,7 +1512,7 @@ function showToast(message, actionLabel, onAction) {
   if (actionLabel) {
     const btn = document.createElement("button");
     btn.textContent = actionLabel;
-    btn.style.cssText = "margin-left:12px;background:none;border:none;color:var(--accent-soft);font-weight:800;padding:0";
+    btn.style.cssText = "margin-left:12px;background:none;border:none;color:var(--accent-soft);font-weight:800;padding:10px 8px;margin:-10px -8px -10px 4px"; // big tap area, same look
     btn.onclick = () => { onAction(); toast.classList.remove("show"); };
     toast.appendChild(btn);
   }

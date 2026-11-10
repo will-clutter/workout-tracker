@@ -79,7 +79,7 @@
 :root {
   color-scheme: dark;
   --text: #e4e1e8;                           /* off-white */
-  --muted: #9d9aa8;
+  --muted: #aeabb9;                          /* 4.5:1 or better on every surface in every theme (WCAG AA) */
   --surface-1: color-mix(in srgb, var(--text) 6%, var(--bg));
   --surface-2: color-mix(in srgb, var(--text) 10%, var(--bg));
   --surface-3: color-mix(in srgb, var(--text) 14%, var(--bg));
@@ -145,6 +145,10 @@ h2 { font-size: 20px; margin: 0; }
 /* ---------- Buttons ---------- */
 button { font: inherit; color: inherit; cursor: pointer; }
 
+/* Keyboard focus ring (only shows for keyboard use, not taps or clicks) */
+:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+.sheet:focus { outline: none; } /* the sheet itself takes focus when it opens; no ring around the whole panel */
+
 .btn {
   border: 1px solid var(--border);
   background: var(--input);
@@ -189,7 +193,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 0;
   background: none; border: none; padding: 4px 0; text-align: left;
 }
-.switcher-label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
+.switcher-label { color: var(--accent-soft); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
 .switcher-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chev { color: var(--muted); }
 
@@ -224,17 +228,17 @@ main { position: relative; }
   position: relative; z-index: 1; /* sit above the circle */
   flex: 1; border: none; background: none;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  color: var(--muted); opacity: 0.6;
-  transition: opacity 0.25s, color 0.25s;
+  color: var(--muted); /* no opacity fade: it would drop the label below AA contrast */
+  transition: color 0.25s;
 }
 .tab-btn span { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
 .tab-btn .icon { transition: transform 0.35s var(--ease); }
 /* The newly selected tab colors in a moment later, as the circle grows behind it */
 /* While gliding, the lit tab (under your finger) takes the highlight instead of the current one */
-.tabbar:not(.gliding) .tab-btn.active { color: var(--accent); opacity: 1; transition: opacity 0.4s 0.22s, color 0.4s 0.22s; }
+.tabbar:not(.gliding) .tab-btn.active { color: var(--accent-soft); opacity: 1; transition: opacity 0.4s 0.22s, color 0.4s 0.22s; }
 .tabbar:not(.gliding) .tab-btn.active .icon { transform: scale(1.1); transition: transform 0.4s 0.22s var(--ease); }
 /* The lit tab reacts right away (no delay) and pops up a little more */
-.tab-btn.lit { color: var(--accent); opacity: 1; transition: opacity 0.15s, color 0.15s; }
+.tab-btn.lit { color: var(--accent-soft); opacity: 1; transition: opacity 0.15s, color 0.15s; }
 .tab-btn.lit .icon { transform: scale(1.25); transition: transform 0.25s var(--ease); }
 
 /* Holding the bar: it presses in slightly and the circle swells and glows */
@@ -279,8 +283,8 @@ main { position: relative; }
   font-size: 15px; color: var(--accent-soft); margin: 18px 2px 10px;
 }
 
-.summary-map { border-radius: var(--radius); padding: 12px 14px; margin-bottom: 4px; }
-.summary-map summary { cursor: pointer; color: var(--muted); font-size: 14px; font-weight: 600; }
+.summary-map { border-radius: var(--radius); padding: 6px 14px; margin-bottom: 4px; }
+.summary-map summary { cursor: pointer; color: var(--muted); font-size: 14px; font-weight: 600; padding: 6px 0; } /* 6px + 6px keeps the old look but the tap area is taller */
 .summary-map[open] summary { margin-bottom: 8px; }
 
 .exercise-list, .results, .workouts-list, .history-list { list-style: none; margin: 0; padding: 0; }
@@ -356,6 +360,7 @@ main { position: relative; }
 }
 .notes:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 
+.done-btn { width: 100%; margin-top: 10px; }
 .editor-actions { display: flex; gap: 8px; margin-top: 10px; }
 .editor-actions .btn { flex: 1; }
 
