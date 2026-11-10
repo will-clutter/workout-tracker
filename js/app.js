@@ -647,6 +647,12 @@ $("historyToggle").addEventListener("click", event => {
     s.setAttribute("aria-selected", s === seg);
   });
   renderHistory();
+
+  // Slide the new list in: Cardio comes from the right, Workouts from the left
+  const list = $("historyList");
+  list.classList.remove("slide-left", "slide-right");
+  void list.offsetWidth; // restart the animation if it was still running
+  list.classList.add(historyView === "cardio" ? "slide-left" : "slide-right");
 });
 
 // One exercise line in a History session
@@ -680,7 +686,7 @@ function renderHistory() {
     const count = tracked && doneCount < session.items.length
       ? `${doneCount} of ${plural(session.items.length, "exercise")} done`
       : plural(session.items.length, "exercise");
-    return `<li>
+    return `<li class="swipe swipe-delete">
       <details class="session glass">
         <summary>
           <div>
@@ -705,14 +711,28 @@ function renderHistory() {
   }).join("");
 }
 
-$("historyList").addEventListener("click", async event => {
-  const id = event.target.dataset.delete;
-  if (!id) return;
-  const ok = await confirmDialog("Delete this session?", "This can't be undone.", "Delete");
-  if (!ok) return;
-  state.history = state.history.filter(s => s.id !== id);
+// Delete a session right away; the toast's Undo puts it back where it was
+function deleteSession(id) {
+  const index = state.history.findIndex(s => s.id === id);
+  if (index < 0) return;
+  const [session] = state.history.splice(index, 1);
   saveState();
   renderHistory();
+  showToast("Deleted session", "Undo", () => {
+    state.history.splice(Math.min(index, state.history.length), 0, session);
+    saveState();
+    renderHistory();
+  });
+}
+
+$("historyList").addEventListener("click", event => {
+  const id = event.target.dataset.delete;
+  if (id) deleteSession(id);
+});
+
+// Swipe a session left (at least a third of the way) to delete it
+enableSwipe($("historyList"), "li.swipe", -1, 0.35, row => {
+  deleteSession(row.querySelector("[data-delete]").dataset.delete);
 });
 
 /* ============================================================

@@ -457,7 +457,17 @@ body[data-tab="cardio"] #addCardioBtn {
   transition: background 0.25s var(--ease), color 0.25s, box-shadow 0.25s;
 }
 .seg.on { background: var(--accent); color: var(--on-accent); }
-.session { border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; animation: cardIn 0.35s var(--ease) both; }
+/* The list item (not the session) carries the entrance animation and spacing, so the
+   session itself is free to slide sideways when swiped (see enableSwipe) */
+.history-list > li { margin-bottom: 10px; border-radius: var(--radius); animation: cardIn 0.35s var(--ease) both; }
+.session { border-radius: var(--radius); overflow: hidden; }
+/* Switching Workouts <-> Cardio: the list slides in from the side you moved toward */
+/* Clip sideways so the slide can never widen the page (that nudged the fixed tab bar) */
+#tab-history.active { overflow-x: clip; }
+.history-list.slide-left { animation: slideFromRight 0.3s var(--ease); }
+.history-list.slide-right { animation: slideFromLeft 0.3s var(--ease); }
+@keyframes slideFromRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+@keyframes slideFromLeft { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
 .session summary { padding: 14px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; list-style: none; }
 .session summary::-webkit-details-marker { display: none; }
 .session .date { color: var(--accent); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; }
@@ -578,11 +588,14 @@ body[data-tab="cardio"] #addCardioBtn {
 .swipe-add { border-radius: 10px; }
 .swipe-add::after { content: "＋ Add"; }
 .swipe-undo::after { content: "Undo"; }
-/* Swiping left: the strip is on the right */
-.swipe-done::after {
-  content: "✓ Done"; left: auto; right: 0; justify-content: flex-end;
+/* Swiping left (Done, Delete): the strip is on the right.
+   This must come after the generic .swipe::after above, or its left: 0 wins. */
+.swipe-done::after, .swipe-delete::after {
+  left: auto; right: 0; justify-content: flex-end;
   padding-left: 0; padding-right: min(16px, var(--swipe-w, 0px));
 }
+.swipe-done::after { content: "✓ Done"; }
+.swipe-delete::after { content: "Delete"; }
 /* First-time hint: the row slides partway open by itself, a bit slower */
 .swipe.peek > * { transition: transform 0.5s var(--ease); }
 .swipe.peek::after { transition: width 0.5s var(--ease); }
