@@ -375,31 +375,35 @@ main { position: relative; }
   position: fixed; z-index: 6; left: 0; right: 0; margin-inline: auto; width: fit-content;
   bottom: calc(var(--tabbar-h) + 14px + env(safe-area-inset-bottom));
   display: flex; align-items: center; justify-content: center;
-  height: 44px; min-width: 56px; padding: 0 16px; border: none; border-radius: 999px;
+  height: 44px; min-width: 44px; padding: 0; border: none; border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 92%, transparent); color: var(--on-accent);
   font-family: inherit; font-weight: 700; font-size: 15px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
   visibility: hidden; opacity: 0; translate: 0 10px;
-  transition: opacity 0.2s, translate 0.25s var(--ease), visibility 0s 0.25s;
+  transition: opacity 0.2s, translate 0.25s var(--ease), padding 0.3s var(--ease), visibility 0s 0.25s;
 }
 body[data-tab="workout"] #addExerciseBtn,
 body[data-tab="cardio"] #addCardioBtn {
   visibility: visible; opacity: 1; translate: 0 0;
-  transition: opacity 0.2s, translate 0.25s var(--ease);
+  transition: opacity 0.2s, translate 0.25s var(--ease), padding 0.3s var(--ease);
 }
 .fab-plus { font-size: 22px; line-height: 1; }
 .fab-label {
   max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
   transition: max-width 0.3s var(--ease), opacity 0.2s, margin 0.3s var(--ease);
 }
+.fab:focus-visible, .fab.pressed { padding-inline: 18px; }
 .fab:focus-visible .fab-label, .fab.pressed .fab-label {
   max-width: 9em; opacity: 1; margin-left: 8px;
 }
 /* Hover only where there's a real pointer (on phones hover sticks after a tap) */
 @media (hover: hover) {
+  .fab:hover { padding-inline: 18px; }
   .fab:hover .fab-label { max-width: 9em; opacity: 1; margin-left: 8px; }
 }
-@media (prefers-reduced-motion: reduce) { .fab, .fab-label { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .fab, .fab-label, body[data-tab] #addExerciseBtn, body[data-tab] #addCardioBtn { transition: none; }
+}
 
 /* Tapping a heading folds its list away */
 .collapse-toggle {
