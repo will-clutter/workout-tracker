@@ -1,12 +1,10 @@
 # Workout Logbook
 
-A high-performance vanilla JS workout app optimized for user eye strain and offline-ready local storage persistence. Features a decentralized UUID identity architecture.
+A mobile-first workout tracker built with vanilla JavaScript, designed with low-glare themes to reduce eye strain and local storage so your progress is saved in the browser.
 
 **Live app:** https://will-clutter.github.io/workout-tracker/
 
 Built with JavaScript, HTML, and CSS (no frameworks), hosted on GitHub Pages. Developed with AI assistance.
-
-## Screenshots
 
 <!-- Add screenshots here -->
 
