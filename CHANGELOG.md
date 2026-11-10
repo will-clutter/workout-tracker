@@ -2,6 +2,13 @@
 
 What changed in Workout Logbook, newest first.
 
+## [1.0.1](https://github.com/will-clutter/workout-tracker/compare/v1.0.0...v1.0.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* improve accessibility toward WCAG 2.2 AA ([4838e45](https://github.com/will-clutter/workout-tracker/commit/4838e455858cc3268948172292be38c6429f4db2))
+
 ## 1.0.0 (2026-11-09)
 
 
