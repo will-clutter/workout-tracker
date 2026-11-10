@@ -73,6 +73,23 @@ function cleanCollapsed(value) {
   return Object.fromEntries(COLLAPSE_KEYS.map(key => [key, saved[key] === true]));
 }
 
+// Moves one still-to-do item to a new place among the to-do items (toIndex counts only to-do items).
+// Crossed-off items keep their exact slots, so un-crossing one later puts it back where it was.
+// Returns a new array; unknown or crossed-off items, or no change, return the items as they were.
+function moveTodoItem(items, uid, toIndex) {
+  const slots = items.map((item, i) => (item.doneAt ? -1 : i)).filter(i => i >= 0);
+  const todo = slots.map(i => items[i]);
+  const from = todo.findIndex(item => item.uid === uid);
+  if (from < 0 || !Number.isFinite(toIndex)) return items;
+  const to = Math.max(0, Math.min(todo.length - 1, Math.trunc(toIndex)));
+  if (to === from) return items;
+  const [moved] = todo.splice(from, 1);
+  todo.splice(to, 0, moved);
+  const result = [...items];
+  slots.forEach((slot, i) => { result[slot] = todo[i]; });
+  return result;
+}
+
 // A fresh workout entry for an exercise, with the default sets/reps
 function newItem(ex) {
   return { uid: makeId(), exId: ex.id, sets: DEFAULT_SETS, reps: DEFAULT_REPS, weight: "", notes: "" };
@@ -462,6 +479,6 @@ if (typeof module !== "undefined") {
     newCardioItem, INTENSITIES, cardioSummaryParts, joinDuration, splitDuration, formatDuration, buildCardioHistoryEntry, isCardioSession,
     editDistance, suggestSearch, glideTabIndex,
     stretchForSpeed, sortSessionsNewestFirst, cleanCollapsed, COLLAPSE_KEYS,
-    DEFAULT_SETTINGS, cleanSettings, unitLabels, showWeight, showDistance, storeWeight, storeDistance
+    moveTodoItem, DEFAULT_SETTINGS, cleanSettings, unitLabels, showWeight, showDistance, storeWeight, storeDistance
   };
 }

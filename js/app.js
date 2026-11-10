@@ -113,6 +113,7 @@ const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: r
 // Small SVG icons (Font Awesome Free) used inside the app's HTML
 const ICONS = {
   note: `<svg class="icon inline" viewBox="0 0 448 512" role="img" aria-label="Has notes"><path d="M64 480c-35.3 0-64-28.7-64-64L0 96C0 60.7 28.7 32 64 32l320 0c35.3 0 64 28.7 64 64l0 213.5c0 17-6.7 33.3-18.7 45.3L322.7 461.3c-12 12-28.3 18.7-45.3 18.7L64 480zM389.5 304L296 304c-13.3 0-24 10.7-24 24l0 93.5 117.5-117.5z"/></svg>`,
+  grip: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>`,
   trash: `<svg class="icon" viewBox="0 0 448 512" aria-hidden="true"><path d="M136.7 5.9L128 32 32 32C14.3 32 0 46.3 0 64S14.3 96 32 96l384 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0-8.7-26.1C306.9-7.2 294.7-16 280.9-16L167.1-16c-13.8 0-26 8.8-30.4 21.9zM416 144L32 144 53.1 467.1C54.7 492.4 75.7 512 101 512L347 512c25.3 0 46.3-19.6 47.9-44.9L416 144z"/></svg>`
 };
 
@@ -250,6 +251,133 @@ function renderAnimated(list) {
   });
 }
 
+/* ============================================================
+   REORDER (drag a still-to-do card by its grip, or use the arrow keys on the grip)
+   The saved order is just the order of workout.items (see moveTodoItem in logic.js).
+   ============================================================ */
+
+function announce(message) {
+  $("liveStatus").textContent = message;
+}
+
+// Save a new place for a card (index among the still-to-do cards) and redraw with a glide
+function reorderCard(uid, toIndex) {
+  const workout = activeWorkout();
+  const moved = moveTodoItem(workout.items, uid, toIndex);
+  if (moved === workout.items) return false;
+  workout.items = moved;
+  saveState();
+  renderAnimated(LISTS.workout);
+  return true;
+}
+
+function enableReorder(listEl) {
+  const OVERSHOOT = 60; // how far (px) a card may be dragged past the first / last card
+  let drag = null;
+
+  const cardsNow = () => [...listEl.querySelectorAll(".card")];
+  const scroller = () => document.scrollingElement;
+
+  // Move the dragged card with the finger and slide the others out of its way
+  function update() {
+    const { card, cards, index, rects, startY, startScroll, clientY, shift } = drag;
+    // The card can travel the length of its list plus a little past each end (which also stops the page scrolling on forever)
+    const rawDy = clientY - startY + (scroller().scrollTop - startScroll);
+    const minDy = rects[0].top - rects[index].top, maxDy = rects.at(-1).bottom - rects[index].bottom;
+    const dy = Math.max(minDy - OVERSHOOT, Math.min(maxDy + OVERSHOOT, rawDy));
+    drag.pinned = rawDy < minDy - OVERSHOOT ? -1 : rawDy > maxDy + OVERSHOOT ? 1 : 0;
+    card.style.transform = `translateY(${dy}px)`;
+    const center = rects[index].mid + dy;
+    // Reaching either end (or going past it) always means first / last, however tall the card is
+    drag.target = dy >= maxDy ? rects.length - 1 : dy <= minDy ? 0 : rects.filter((r, i) => i !== index && r.mid < center).length;
+    cards.forEach((other, i) => {
+      if (i === index) return;
+      const up = drag.target > index && i > index && i <= drag.target;
+      const down = drag.target < index && i < index && i >= drag.target;
+      other.style.transform = up ? `translateY(${-shift}px)` : down ? `translateY(${shift}px)` : "";
+    });
+  }
+
+  // Near the top or bottom edge of the screen, keep scrolling while you hold the card there
+  function autoScroll() {
+    if (!drag) return;
+    const edge = 90, bottomEdge = window.innerHeight - 120; // the tab bar is at the bottom
+    const speed = drag.clientY < edge ? -(edge - drag.clientY) / 5 : drag.clientY > bottomEdge ? (drag.clientY - bottomEdge) / 5 : 0;
+    if (speed && Math.sign(speed) !== drag.pinned) { scroller().scrollTop += speed; update(); } // not while the card is stuck at the list's end
+    drag.raf = requestAnimationFrame(autoScroll);
+  }
+
+  const escapeToCancel = event => { if (event.key === "Escape") finish(false); };
+
+  function finish(save) {
+    if (!drag) return;
+    const { card, cards, index, target, raf } = drag;
+    drag = null;
+    cancelAnimationFrame(raf);
+    document.removeEventListener("keydown", escapeToCancel);
+    if (save && target !== index) {
+      const name = card.querySelector(".row-name").textContent;
+      reorderCard(card.dataset.uid, target); // redraws from wherever everything is on screen right now
+      announce(`Moved ${name} to position ${target + 1} of ${cards.length}`);
+      return;
+    }
+    // Dropped where it started (or cancelled): everything slides back
+    cards.forEach(c => { c.style.transform = ""; });
+    setTimeout(() => cards.forEach(c => c.classList.remove("dragging", "shifting")), 250);
+  }
+
+  listEl.addEventListener("pointerdown", event => {
+    const handle = event.target.closest(".drag-handle");
+    if (!handle || event.button !== 0 || drag) return;
+    event.preventDefault();
+    const cards = cardsNow();
+    const card = handle.closest(".card");
+    const scrollTop = scroller().scrollTop;
+    const rects = cards.map(c => {
+      const r = c.getBoundingClientRect();
+      return { top: r.top + scrollTop, bottom: r.bottom + scrollTop, mid: r.top + scrollTop + r.height / 2 };
+    });
+    const index = cards.indexOf(card);
+    drag = {
+      card, cards, index, rects, target: index, pointerId: event.pointerId,
+      startY: event.clientY, clientY: event.clientY, startScroll: scrollTop,
+      shift: card.getBoundingClientRect().height + 10 // the card's height plus the gap under it
+    };
+    // "settled" stops the entrance animation from overriding the move
+    cards.forEach(c => c.classList.add("settled", c === card ? "dragging" : "shifting"));
+    handle.setPointerCapture(event.pointerId);
+    document.addEventListener("keydown", escapeToCancel);
+    drag.raf = requestAnimationFrame(autoScroll);
+  });
+  listEl.addEventListener("pointermove", event => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    drag.clientY = event.clientY;
+    update();
+  });
+  listEl.addEventListener("pointerup", event => { if (drag && event.pointerId === drag.pointerId) finish(true); });
+  listEl.addEventListener("pointercancel", event => { if (drag && event.pointerId === drag.pointerId) finish(false); });
+
+  // Keyboard: arrows on a focused grip move the card one place; Home / End jump to the ends
+  listEl.addEventListener("keydown", event => {
+    const handle = event.target.closest(".drag-handle");
+    if (!handle) return;
+    const cards = cardsNow();
+    const card = handle.closest(".card");
+    const index = cards.indexOf(card);
+    const target = { ArrowUp: index - 1, ArrowDown: index + 1, Home: 0, End: cards.length - 1 }[event.key];
+    if (target === undefined) return;
+    event.preventDefault();
+    const clamped = Math.max(0, Math.min(cards.length - 1, target));
+    const uid = card.dataset.uid;
+    const name = card.querySelector(".row-name").textContent;
+    if (clamped === index) return announce(`${name} is already ${index === 0 ? "first" : "last"}`);
+    reorderCard(uid, clamped);
+    listEl.querySelector(`.card[data-uid="${uid}"] .drag-handle`)?.focus();
+    announce(`Moved ${name} to position ${clamped + 1} of ${cards.length}`);
+  });
+}
+enableReorder($("exerciseList"));
+
 // Which cards are expanded (open for editing). Not saved; resets on reload.
 const openCards = new Set();
 
@@ -283,9 +411,12 @@ function buildExerciseCard(item) {
   const name = exercise ? exercise.name : "Unknown exercise";
   const isOpen = openCards.has(item.uid);
 
+  // Still-to-do cards get a grip to drag them into your own order (needs 2+ to have anything to reorder)
+  const canReorder = !item.doneAt && activeWorkout().items.filter(i => !i.doneAt).length >= 2;
+
   const li = document.createElement("li");
   // swipe-done = swipe left to cross off; crossed-off cards swipe right to undo
-  li.className = "card glass swipe " + (item.doneAt ? "done swipe-undo" : "swipe-done") + (isOpen ? " open" : "");
+  li.className = "card glass swipe " + (item.doneAt ? "done swipe-undo" : "swipe-done") + (isOpen ? " open" : "") + (canReorder ? " has-handle" : "");
   li.dataset.uid = item.uid;
   li.innerHTML = `
     <button class="row" data-action="toggle" aria-expanded="${isOpen}">
@@ -296,6 +427,7 @@ function buildExerciseCard(item) {
       </span>
       <span class="mini-map">${exercise ? renderMiniMap(exercise.primaryMuscles, exercise.secondaryMuscles) : ""}</span>
     </button>
+    ${canReorder ? `<button class="drag-handle" aria-label="Reorder ${escapeHtml(name)}. Drag, or use the up and down arrow keys." title="Drag to reorder">${ICONS.grip}</button>` : ""}
 
     <div class="editor"><div class="editor-inner"><div class="editor-content">
       <div class="stats">
@@ -1067,6 +1199,7 @@ function enableSwipe(list, rowSelector, direction, threshold, onSwipe) {
     const row = event.target.closest(rowSelector);
     if (!row || event.button !== 0) return;
     if (event.target.closest("input, textarea")) return; // dragging in a text box selects text instead
+    if (event.target.closest(".drag-handle")) return;    // that's for reordering, not swiping
     drag = { row, x: event.clientX, y: event.clientY, distance: 0, active: false };
   });
 

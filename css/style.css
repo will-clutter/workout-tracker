@@ -310,6 +310,26 @@ main { position: relative; }
 .card.removing { opacity: 0; transform: translateX(40px); }
 .card.flash { animation: cardIn 0.4s var(--ease) both, flash 1.1s var(--ease); }
 
+/* Grip for reordering a still-to-do card: a sibling of the row, laid over its right edge */
+.card > .drag-handle {
+  position: absolute; top: 0; right: 0; width: 44px; height: 84px; /* 84px = the row's height */
+  display: grid; place-items: center; padding: 0; border: none; background: none;
+  color: var(--muted); cursor: grab; touch-action: none; /* dragging it must not scroll the page */
+}
+.card > .drag-handle:hover, .card.dragging > .drag-handle { color: var(--text); }
+.drag-handle:focus-visible { outline-offset: -4px; border-radius: var(--radius); }
+.drag-handle .icon { width: 20px; height: 20px; }
+.card.has-handle .row { padding-right: 48px; } /* keep the mini map clear of the grip */
+.card.shifting { transition: transform 0.2s var(--ease); }
+.card.dragging {
+  z-index: 5; cursor: grabbing; transition: none; scale: 1.02;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
 /* The always-visible row: photo, name, summary, mini map */
 .row {
   display: flex; align-items: center; gap: 12px; width: 100%;
