@@ -2,6 +2,22 @@
 
 What changed in Workout Logbook, newest first.
 
+## [1.2.0](https://github.com/will-clutter/workout-tracker/compare/v1.1.0...v1.2.0) (2026-11-10)
+
+
+### Features
+
+* collapsing a list piles the cards up and expanding unravels them, with rapid taps reversing smoothly ([415f7a6](https://github.com/will-clutter/workout-tracker/commit/415f7a6f687811a1998be10474ec1615834fe270))
+* floating Add button and collapsible Exercises/Activities/Completed headings ([1a07f06](https://github.com/will-clutter/workout-tracker/commit/1a07f068fed72b8bb32678ae07add57e5edd034b))
+* History swipe-left to delete with Undo, and slide animation between Workouts and Cardio ([0c398bb](https://github.com/will-clutter/workout-tracker/commit/0c398bb44efc1c08da723ffa316c3987608a8836))
+* Settings sheet with Imperial/Metric units and a duration display format ([d8c6c5b](https://github.com/will-clutter/workout-tracker/commit/d8c6c5b545598186ad86edd204945363ab138346))
+
+
+### Bug Fixes
+
+* History swipe-to-delete strip follows the card pattern, and the Workouts/Cardio toggle pill slides ([636e533](https://github.com/will-clutter/workout-tracker/commit/636e5335f80a04e9244d1867f2618dbaf09a8b2d))
+* make the resting floating Add button a circle and honor reduced motion ([88ecb2d](https://github.com/will-clutter/workout-tracker/commit/88ecb2d61d73093638d86b505aece31af30a5539))
+
 ## [1.1.0](https://github.com/will-clutter/workout-tracker/compare/v1.0.1...v1.1.0) (2026-11-10)
 
 
