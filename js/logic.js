@@ -373,6 +373,28 @@ function glideTabIndex(x, y, bar, boxes, slack = 60) {
   return best;
 }
 
+/*
+  How much the glide circle stretches sideways for a given finger speed (px per ms).
+  1 = round (at rest). Below the dead zone (a slow slide, or a finger jittering while
+  held) it stays exactly 1. Above it, it rises smoothly and levels off at `max`, never past it.
+*/
+const STRETCH_DEAD_ZONE = 0.3;    // px/ms under which there is no stretch at all
+const STRETCH_SPEED_SCALE = 1.5;  // px/ms past the dead zone for ~63% of the way to max (tune by feel)
+function stretchForSpeed(pxPerMs, max = 1.5) {
+  if (!(pxPerMs > STRETCH_DEAD_ZONE)) return 1; // also catches NaN and negatives
+  return 1 + (max - 1) * (1 - Math.exp(-(pxPerMs - STRETCH_DEAD_ZONE) / STRETCH_SPEED_SCALE));
+}
+
+/* ---------- History order ---------- */
+
+// Newest session first. Returns a new list; sessions with unreadable dates go last.
+function sortSessionsNewestFirst(sessions) {
+  const time = s => { const t = new Date(s && s.date).getTime(); return Number.isNaN(t) ? -Infinity : t; };
+  return sessions.map((s, i) => ({ s, i, t: time(s) }))
+    .sort((a, b) => (b.t === a.t ? a.i - b.i : b.t > a.t ? 1 : -1))
+    .map(x => x.s);
+}
+
 // Lets the tests load these functions. The browser skips this line.
 if (typeof module !== "undefined") {
   module.exports = {
@@ -381,6 +403,7 @@ if (typeof module !== "undefined") {
     WHOLE_FIELDS, DECIMAL_FIELDS, sanitizeWhole, sanitizeMinSec, sanitizeDecimal, savedDecimal, cleanNumbers,
     exerciseMatches, isCardio,
     newCardioItem, INTENSITIES, cardioSummaryParts, joinDuration, splitDuration, formatDuration, buildCardioHistoryEntry, isCardioSession,
-    editDistance, suggestSearch, glideTabIndex
+    editDistance, suggestSearch, glideTabIndex,
+    stretchForSpeed, sortSessionsNewestFirst
   };
 }

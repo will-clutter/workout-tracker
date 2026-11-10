@@ -252,6 +252,7 @@ main { position: relative; }
 }
 @media (prefers-reduced-motion: reduce) {
   .tabbar, .tab-indicator::before, .tab-btn.lit .icon { transition: none; }
+  .tab-indicator::before { transform: none; }
 }
 
 /* The glowing circle behind the selected tab's icon.
@@ -269,7 +270,9 @@ main { position: relative; }
   border-radius: 50%;
   background: color-mix(in srgb, var(--accent) 22%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
-  transition: scale 0.25s var(--ease), background-color 0.2s, box-shadow 0.2s;
+  /* --stretch is set from JavaScript while gliding: faster finger, longer circle */
+  transform: scaleX(var(--stretch, 1));
+  transition: scale 0.25s var(--ease), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s, box-shadow 0.2s;
 }
 
 /* ---------- Workout page ---------- */
@@ -398,6 +401,7 @@ main { position: relative; }
   display: flex; gap: 4px; padding: 4px; margin-bottom: 14px;
   background: var(--input); border: 1px solid var(--border); border-radius: 12px;
 }
+.history-order { margin: 0 2px 10px; font-size: 13px; }
 .seg {
   flex: 1; border: none; background: none; border-radius: 9px; padding: 8px;
   color: var(--muted); font-weight: 700; font-size: 14px;

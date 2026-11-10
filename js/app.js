@@ -632,9 +632,10 @@ function historyLineHtml(item, isCardio) {
 
 function renderHistory() {
   const showCardio = historyView === "cardio";
-  const sessions = state.history.filter(s => isCardioSession(s) === showCardio);
+  const sessions = sortSessionsNewestFirst(state.history.filter(s => isCardioSession(s) === showCardio));
 
   $("historyEmpty").classList.toggle("hidden", sessions.length > 0);
+  $("historyOrder").classList.toggle("hidden", sessions.length < 2); // order only matters with 2+
   $("historyEmptyTitle").textContent = showCardio ? "No cardio logged yet." : "No sessions logged yet.";
   $("historyEmptyHint").innerHTML = showCardio
     ? "After cardio, tap <b>Log today's cardio</b> to save it here."
@@ -736,16 +737,42 @@ function glideTabAt(event) {
   return tabButtons[i] || null;
 }
 
+// The circle stretches sideways with finger speed (smoothed so it doesn't flicker)
+let stretchResetTimer = null;
+function setStretch(value) {
+  tabIndicator.style.setProperty("--stretch", prefersReducedMotion() ? 1 : value.toFixed(3));
+}
+function updateStretch(event) {
+  const now = event.timeStamp;
+  const dt = now - glide.lastTime;
+  if (dt < 16) return; // measure over at least ~one frame so tiny time gaps can't fake a high speed
+  const dx = Math.abs(event.clientX - glide.lastX);
+  glide.lastX = event.clientX;
+  glide.lastTime = now;
+  if (dx < 2) { // a held finger jitters a pixel or so: that's not movement
+    glide.speed = 0;
+    setStretch(1);
+    return; // and it must not keep the relax timer from firing
+  }
+  glide.speed = glide.speed * 0.7 + (dx / dt) * 0.3; // px per ms, smoothed
+  setStretch(stretchForSpeed(glide.speed));
+  // Relax back to round if real movement stops
+  clearTimeout(stretchResetTimer);
+  stretchResetTimer = setTimeout(() => { if (glide) glide.speed = 0; setStretch(1); }, 90);
+}
+
 tabBar.addEventListener("pointerdown", event => {
   if (glide || (event.pointerType === "mouse" && event.button !== 0)) return;
-  glide = { id: event.pointerId, target: undefined };
+  glide = { id: event.pointerId, target: undefined, lastX: event.clientX, lastTime: event.timeStamp, speed: 0 };
   tabBar.setPointerCapture(event.pointerId);
   tabBar.classList.add("gliding");
   glideTo(glideTabAt(event));
 });
 
 tabBar.addEventListener("pointermove", event => {
-  if (glide && event.pointerId === glide.id) glideTo(glideTabAt(event));
+  if (!glide || event.pointerId !== glide.id) return;
+  updateStretch(event);
+  glideTo(glideTabAt(event));
 });
 
 function endGlide(event) {
@@ -753,6 +780,8 @@ function endGlide(event) {
   // Only a real let-go on a tab switches (the browser can cancel the touch)
   const target = event.type === "pointerup" ? glideTabAt(event) : null;
   glide = null;
+  clearTimeout(stretchResetTimer);
+  setStretch(1);
   tabBar.classList.remove("gliding");
   tabButtons.forEach(b => b.classList.remove("lit"));
   if (target) showTab(target);

@@ -1,7 +1,30 @@
 // Tests for gliding across the tab bar (glideTabIndex in js/logic.js). Run them with: npm test
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { glideTabIndex } = require("../js/logic.js");
+const { glideTabIndex, stretchForSpeed } = require("../js/logic.js");
+
+test("stretchForSpeed: round at rest, bad input is round too", () => {
+  assert.equal(stretchForSpeed(0), 1);
+  assert.equal(stretchForSpeed(-2), 1);
+  assert.equal(stretchForSpeed(NaN), 1);
+});
+
+test("stretchForSpeed: slow sliding and jitter (dead zone) stay exactly round", () => {
+  assert.equal(stretchForSpeed(0.1), 1);
+  assert.equal(stretchForSpeed(0.3), 1);
+});
+
+test("stretchForSpeed: infinite speed gives the max, not round", () => {
+  assert.equal(stretchForSpeed(Infinity), 1.5);
+});
+
+test("stretchForSpeed: grows with speed but never passes the max", () => {
+  assert.ok(stretchForSpeed(0.5) > 1);
+  assert.ok(stretchForSpeed(2) > stretchForSpeed(0.5));
+  assert.ok(stretchForSpeed(1000) <= 1.5);
+  assert.ok(stretchForSpeed(1000) > 1.49);
+  assert.ok(stretchForSpeed(1000, 2) <= 2);
+});
 
 const bar = { top: 700, bottom: 756 };
 const boxes = [{ left: 20, right: 120 }, { left: 120, right: 220 }, { left: 220, right: 320 }];
