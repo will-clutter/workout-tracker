@@ -1,6 +1,8 @@
 # Workout Tracker
 
-A mobile-first workout tracker built with vanilla JavaScript, designed with low-glare themes to reduce eye strain and local storage so your progress is saved in the browser.
+A mobile-first workout tracker built with vanilla JavaScript, designed with
+low-glare themes to reduce eye strain and local storage so your progress is
+saved in the browser.
 
 **Live app:** https://will-clutter.github.io/workout-tracker/
 
@@ -37,9 +39,26 @@ Checked items are implemented. Unchecked items are planned.
 - [ ] Drag to reorder exercises
 - [ ] History polish: swipe to delete with Undo, animated Workouts / Cardio switch
 - [ ] Export and import backup
-- [ ] Backend persistence
-- [ ] Decentralized UUID identity
+- [ ] Unique IDs for every workout and cardio entry (with migration for existing data)
+- [ ] Cloud sync with Supabase (PostgreSQL + Row Level Security)
+- [ ] Passwordless anonymous identity (UUID per user)
+- [ ] Optional email magic link for account recovery and multi-device sync
 - [x] Accessibility pass targeting WCAG 2.2 AA
+
+## Future plans
+
+This version is intentionally built with vanilla HTML, CSS, and JavaScript.
+Next up is cloud sync with Supabase:
+
+- **Database:** PostgreSQL (via Supabase) with Row Level Security
+- **Identity:** passwordless anonymous sign-in by default, so every user
+  gets a UUID. Users can optionally add an email (magic link, no password)
+  to recover their data or sync across devices.
+- **Backups:** export and import, so users can move their data to a new device
+- **Offline:** local storage stays as the offline copy
+
+Once that's done, this version will be considered complete. I plan to
+rebuild it later with React and a custom Kotlin/Ktor API as a separate project.
 
 ## Accessibility
 
