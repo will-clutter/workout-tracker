@@ -28,7 +28,7 @@
     applyTheme(savedTheme || "crimson");
   </script>
 </head>
-<body>
+<body data-tab="workout">
 
   <!-- ===== Top bar: which workout you're looking at ===== -->
   <header class="topbar">
@@ -60,10 +60,12 @@
 
       <!-- Exercise cards: still to do, then crossed off (swipe left to cross off) -->
       <div id="cards">
-        <div id="exercisesLabel" class="section-label">Exercises</div>
+        <div id="exercisesLabel" class="section-label">
+          <button class="collapse-toggle" data-key="exercises" data-list="exerciseList" aria-expanded="true" aria-controls="exerciseList">Exercises</button>
+        </div>
         <ul id="exerciseList" class="exercise-list"></ul>
         <div id="completedHead" class="section-label completed-head hidden">
-          Completed
+          <button class="collapse-toggle" data-key="completed" data-list="completedList" aria-expanded="true" aria-controls="completedList">Completed</button>
           <button id="resetDoneBtn" class="btn ghost small">Reset</button>
         </div>
         <ul id="completedList" class="exercise-list"></ul>
@@ -71,11 +73,10 @@
 
       <div id="emptyState" class="empty nothing-yet">
         <p>Nothing here yet!</p>
-        <p class="muted">Tap <b>Add Exercise</b> to get started.</p>
+        <p class="muted">Tap <b>＋ Add Exercise</b> to get started.</p>
       </div>
 
       <div class="workout-actions">
-        <button id="addExerciseBtn" class="btn primary big">＋ Add Exercise</button>
         <button id="logBtn" class="btn ghost">✓ Log today's session</button>
       </div>
     </section>
@@ -88,10 +89,12 @@
 
       <!-- Cardio cards: still to do, then crossed off (swipe left to cross off) -->
       <div id="cardioCards">
-        <div id="cardioLabel" class="section-label">Activities</div>
+        <div id="cardioLabel" class="section-label">
+          <button class="collapse-toggle" data-key="activities" data-list="cardioList" aria-expanded="true" aria-controls="cardioList">Activities</button>
+        </div>
         <ul id="cardioList" class="exercise-list"></ul>
         <div id="cardioCompletedHead" class="section-label completed-head hidden">
-          Completed
+          <button class="collapse-toggle" data-key="cardioCompleted" data-list="cardioCompletedList" aria-expanded="true" aria-controls="cardioCompletedList">Completed</button>
           <button id="cardioResetBtn" class="btn ghost small">Reset</button>
         </div>
         <ul id="cardioCompletedList" class="exercise-list"></ul>
@@ -99,11 +102,10 @@
 
       <div id="cardioEmpty" class="empty nothing-yet">
         <p>Nothing here yet!</p>
-        <p class="muted">Tap <b>Add Cardio</b> to get started.</p>
+        <p class="muted">Tap <b>＋ Add Cardio</b> to get started.</p>
       </div>
 
       <div class="workout-actions">
-        <button id="addCardioBtn" class="btn primary big">＋ Add Cardio</button>
         <button id="logCardioBtn" class="btn ghost">✓ Log today's cardio</button>
       </div>
     </section>
@@ -124,6 +126,11 @@
       </div>
     </section>
   </main>
+
+  <!-- Floating Add buttons. They live outside <main> (a tab's fade-in animation would
+       shift a fixed button), and CSS shows the right one for body[data-tab]. -->
+  <button id="addExerciseBtn" class="fab"><span class="fab-plus" aria-hidden="true">＋</span><span class="fab-label">Add Exercise</span></button>
+  <button id="addCardioBtn" class="fab"><span class="fab-plus" aria-hidden="true">＋</span><span class="fab-label">Add Cardio</span></button>
 
   <!-- ===== Bottom navigation ===== -->
   <nav class="tabbar glass" aria-label="Main">

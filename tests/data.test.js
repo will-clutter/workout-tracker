@@ -3,7 +3,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
   parseSavedState, findActiveWorkout, hasExercise, findExercise,
-  buildHistoryEntry, clearCrossOffsFromOtherDays
+  buildHistoryEntry, clearCrossOffsFromOtherDays, cleanCollapsed
 } = require("../js/logic.js");
 
 // Keep the "Couldn't read saved data" warning out of the test output
@@ -19,7 +19,8 @@ test("parseSavedState: valid saved data comes back as-is", () => {
     workouts: [{ id: "a", name: "Legs", items: [] }], activeWorkoutId: "a", customExercises: [], history: [],
     cardio: { items: [{ uid: "c1", exId: "Stairmaster", durationSec: 1200 }] }
   };
-  assert.deepEqual(parseSavedState(JSON.stringify(saved)), saved);
+  // Everything comes back as saved, plus the folded-headings list (all open) that older saves lack
+  assert.deepEqual(parseSavedState(JSON.stringify(saved)), { ...saved, collapsed: cleanCollapsed() });
 });
 
 test("parseSavedState: cardio saved with whole minutes is changed to seconds", () => {
@@ -42,7 +43,7 @@ test("parseSavedState: cardio saved with whole minutes is changed to seconds", (
 
 test("parseSavedState: data saved before the Cardio tab gets an empty cardio list", () => {
   const saved = { workouts: [{ id: "a", name: "Legs", items: [] }], activeWorkoutId: "a", customExercises: [], history: [] };
-  assert.deepEqual(parseSavedState(JSON.stringify(saved)), { ...saved, cardio: { items: [] } });
+  assert.deepEqual(parseSavedState(JSON.stringify(saved)), { ...saved, cardio: { items: [] }, collapsed: cleanCollapsed() });
 });
 
 test("parseSavedState: a fresh start includes an empty cardio list", () => {

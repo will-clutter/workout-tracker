@@ -141,7 +141,35 @@ function fillCardLists(items, buildCard, ids) {
   $(ids.done).replaceChildren(...done.map(buildCard));
   $(ids.todoLabel).classList.toggle("hidden", todo.length === 0);
   $(ids.doneHead).classList.toggle("hidden", done.length === 0);
+  applyCollapsed();
 }
+
+// Fold or open each list to match the saved state, and keep the headings' aria-expanded in step
+function applyCollapsed() {
+  document.querySelectorAll(".collapse-toggle").forEach(button => {
+    const collapsed = Boolean(state.collapsed?.[button.dataset.key]);
+    button.setAttribute("aria-expanded", String(!collapsed));
+    $(button.dataset.list).classList.toggle("collapsed", collapsed);
+  });
+}
+
+// The floating Add buttons grow to show their label while pressed (phones have no hover).
+// Letting go still ends in a normal click, which opens the picker.
+document.querySelectorAll(".fab").forEach(fab => {
+  fab.addEventListener("pointerdown", () => fab.classList.add("pressed"));
+  ["pointerup", "pointercancel", "pointerleave"].forEach(type =>
+    fab.addEventListener(type, () => fab.classList.remove("pressed")));
+});
+
+// Tap a heading to fold its list away (remembered)
+document.querySelectorAll(".collapse-toggle").forEach(button => {
+  button.addEventListener("click", () => {
+    state.collapsed = cleanCollapsed(state.collapsed);
+    state.collapsed[button.dataset.key] = !state.collapsed[button.dataset.key];
+    saveState();
+    applyCollapsed();
+  });
+});
 
 // Same as list.render(), but cards glide from their old spot to their new one
 // (e.g. down into Completed) instead of jumping there.
@@ -702,6 +730,7 @@ function showTab(button) {
     if (b === button) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   });
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + button.dataset.tab));
+  document.body.dataset.tab = button.dataset.tab; // shows the matching floating Add button
   window.scrollTo({ top: 0 });
   hintCrossOff(); // only does anything on the Workout and Cardio tabs
 }

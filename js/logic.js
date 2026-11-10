@@ -19,8 +19,16 @@ function defaultState() {
     activeWorkoutId: id,
     customExercises: [],
     history: [],
-    cardio: { items: [] }
+    cardio: { items: [] },
+    collapsed: cleanCollapsed()
   };
+}
+
+// Which headings are folded away (saved). Anything missing or odd counts as open.
+const COLLAPSE_KEYS = ["exercises", "completed", "activities", "cardioCompleted"];
+function cleanCollapsed(value) {
+  const saved = isRecord(value) ? value : {};
+  return Object.fromEntries(COLLAPSE_KEYS.map(key => [key, saved[key] === true]));
 }
 
 // A fresh workout entry for an exercise, with the default sets/reps
@@ -146,6 +154,7 @@ function parseSavedState(text) {
         saved.history.forEach(entry => { entry.items = records(entry.items); });
         if (!isRecord(saved.cardio)) saved.cardio = {}; // saved before the Cardio tab existed
         saved.cardio.items = records(saved.cardio.items);
+        saved.collapsed = cleanCollapsed(saved.collapsed); // saved before collapsing existed
 
         // Duration used to be whole minutes; now it's seconds
         const cardioLists = [saved.cardio, ...saved.history.filter(isCardioSession)];
@@ -404,6 +413,6 @@ if (typeof module !== "undefined") {
     exerciseMatches, isCardio,
     newCardioItem, INTENSITIES, cardioSummaryParts, joinDuration, splitDuration, formatDuration, buildCardioHistoryEntry, isCardioSession,
     editDistance, suggestSearch, glideTabIndex,
-    stretchForSpeed, sortSessionsNewestFirst
+    stretchForSpeed, sortSessionsNewestFirst, cleanCollapsed, COLLAPSE_KEYS
   };
 }
