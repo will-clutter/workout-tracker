@@ -2,6 +2,28 @@
 
 What changed in Workout Logbook, newest first.
 
+## 1.0.0 (2026-11-09)
+
+
+### Features
+
+* hold and glide across the tab bar ([8de64e1](https://github.com/will-clutter/workout-tracker/commit/8de64e1f9ec0a4eab78cc5ea9f2525ac45275b4d))
+* make hold-and-glide on the tab bar visibly react ([fccdee3](https://github.com/will-clutter/workout-tracker/commit/fccdee3f79aebf5cded0f0a87cc411e206b1eefe))
+* softer colors with lighter-surface elevation ([f8f3f06](https://github.com/will-clutter/workout-tracker/commit/f8f3f06c3b44352e829d2bff4bc28d8c33706b17))
+* switch heading font from Cinzel to Outfit ([883e3e4](https://github.com/will-clutter/workout-tracker/commit/883e3e4806c8dd8f971fc13b3462c557c0c189ed))
+
+
+### Bug Fixes
+
+* keep the tab bar circle centered on its icon while held ([2675443](https://github.com/will-clutter/workout-tracker/commit/2675443d0cbb608de0bf3b8818c13ff6a96d9e40))
+* remove tab-switch lag by hiding tabs with visibility instead of display:none ([8c736ba](https://github.com/will-clutter/workout-tracker/commit/8c736ba48177b99e6b67eb0354970c16b79f1614))
+
+
+### Performance Improvements
+
+* lighter card shadows and skip off-screen cards ([f4c0549](https://github.com/will-clutter/workout-tracker/commit/f4c054910cb82ba25a1fd6d81f7c632230cfded1))
+* remove background drift and card blur to reduce lag ([a232ae3](https://github.com/will-clutter/workout-tracker/commit/a232ae3e30a47223bc1b18e0e535a788c330e5c5))
+
 ## 2026-11-09
 
 ### Changed
