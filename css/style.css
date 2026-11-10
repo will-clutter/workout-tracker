@@ -316,6 +316,8 @@ main { position: relative; }
   background: none; border: none; text-align: left; padding: 10px 12px 10px 14px;
   transition: transform 0.12s var(--ease);
 }
+/* The card clips anything outside it, so the keyboard focus ring has to sit inside the row */
+.row:focus-visible { outline-offset: -3px; border-radius: var(--radius); }
 .thumb {
   width: 64px; height: 64px; flex: none; border-radius: 12px; overflow: hidden;
   background: linear-gradient(135deg, var(--accent-dark), var(--bg));

@@ -147,6 +147,7 @@ function fillCardLists(items, buildCard, ids) {
 // Fold or open each list to match the saved state, and keep the headings' aria-expanded in step
 function applyCollapsed() {
   document.querySelectorAll(".collapse-toggle").forEach(button => {
+    endFold($(button.dataset.list)); // a redraw (or finished fold) leaves no animation half-done
     const collapsed = Boolean(state.collapsed?.[button.dataset.key]);
     button.setAttribute("aria-expanded", String(!collapsed));
     $(button.dataset.list).classList.toggle("collapsed", collapsed);
@@ -161,15 +162,69 @@ document.querySelectorAll(".fab").forEach(fab => {
     fab.addEventListener(type, () => fab.classList.remove("pressed")));
 });
 
-// Tap a heading to fold its list away (remembered)
+// Tap a heading to fold its list away (remembered).
+// Each list has one animation set: played forward = fold into a pile, backward = unravel.
+// Tapping again mid-flight just reverses it from the current frame, so rapid taps never jump.
 document.querySelectorAll(".collapse-toggle").forEach(button => {
   button.addEventListener("click", () => {
     state.collapsed = cleanCollapsed(state.collapsed);
-    state.collapsed[button.dataset.key] = !state.collapsed[button.dataset.key];
+    const key = button.dataset.key;
+    state.collapsed[key] = !state.collapsed[key];
     saveState();
-    applyCollapsed();
+    button.setAttribute("aria-expanded", String(!state.collapsed[key]));
+    const list = $(button.dataset.list);
+    if (list._fold) return list._fold.forEach(a => a.reverse()); // changed its mind mid-animation
+
+    const cards = [...list.querySelectorAll(".card")];
+    if (prefersReducedMotion() || !cards.length) return applyCollapsed();
+    if (!state.collapsed[key]) { // opening: show the list, then run the fold backwards from the pile
+      list.classList.remove("collapsed");
+      cards.forEach(card => card.classList.add("settled")); // no fade-in of their own
+    }
+    list._fold = buildFold(list, cards);
+    list._fold.forEach(a => { if (state.collapsed[key]) a.play(); else { a.currentTime = FOLD_MS; a.reverse(); } });
   });
 });
+
+// The cards slide together into one pile (first card on top), then the pile melts and the list shrinks away
+const FOLD_MS = 420, PILE_AT = 0.6;
+function pileTransform(card, firstTop, i) {
+  const rise = Math.min(i, 3);
+  return `translateY(${firstTop - card.getBoundingClientRect().top + rise * 4}px) scale(${1 - rise * 0.02})`;
+}
+// Measures the fully open list and returns its paused animations (the list's own is last)
+function buildFold(list, cards) {
+  const firstTop = cards[0].getBoundingClientRect().top;
+  const full = list.offsetHeight, one = cards[0].offsetHeight + 10;
+  const timing = { duration: FOLD_MS, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "both" };
+  list.style.overflow = "hidden";
+  const anims = cards.map((card, i) => {
+    card.style.zIndex = cards.length - i;
+    const pile = pileTransform(card, firstTop, i);
+    return card.animate([
+      { transform: "none", opacity: 1 },
+      { transform: pile, opacity: 1, offset: PILE_AT },
+      { transform: pile, opacity: 0 }
+    ], timing);
+  });
+  const listAnim = list.animate([
+    { height: `${full}px` },
+    { height: `${one}px`, offset: PILE_AT },
+    { height: "0px" }
+  ], timing);
+  anims.push(listAnim);
+  anims.forEach(a => a.pause());
+  listAnim.onfinish = () => { endFold(list); applyCollapsed(); }; // reached either end: settle on the saved state
+  return anims;
+}
+// Drop any running fold and its temporary styles
+function endFold(list) {
+  if (!list._fold) return;
+  list._fold.forEach(a => a.cancel());
+  list._fold = null;
+  list.style.overflow = "";
+  list.querySelectorAll(".card").forEach(card => { card.style.zIndex = ""; });
+}
 
 // Same as list.render(), but cards glide from their old spot to their new one
 // (e.g. down into Completed) instead of jumping there.
