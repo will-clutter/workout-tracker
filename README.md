@@ -1,4 +1,4 @@
-# Workout Logbook
+# Workout Tracker
 
 A mobile-first workout tracker built with vanilla JavaScript, designed with low-glare themes to reduce eye strain and local storage so your progress is saved in the browser.
 
