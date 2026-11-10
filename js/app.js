@@ -847,43 +847,34 @@ $("historyToggle").addEventListener("click", event => {
   renderHistory();
 });
 
-// One exercise line in a History session
-function historyLineHtml(item, isCardio) {
+// One exercise line in a History session (words = the search words to highlight)
+function historyLineHtml(item, isCardio, words = []) {
+  const name = `<b>${highlightText(item.name, words)}</b>`;
   if (isCardio) {
     const parts = cardioSummaryParts(item, state.settings);
-    return `<b>${escapeHtml(item.name)}</b>${parts.length ? ` — ${escapeHtml(parts.join(" · "))}` : ""}`;
+    return `${name}${parts.length ? ` — ${escapeHtml(parts.join(" · "))}` : ""}`;
   }
-  return `<b>${escapeHtml(item.name)}</b> — ${escapeHtml(item.sets || "?")} × ${escapeHtml(item.reps || "?")}${item.weight ? ` @ ${escapeHtml(showWeight(item.weight, units()))} ${unitLabels(units()).weight}` : ""}`;
+  return `${name} — ${escapeHtml(item.sets || "?")} × ${escapeHtml(item.reps || "?")}${item.weight ? ` @ ${escapeHtml(showWeight(item.weight, units()))} ${unitLabels(units()).weight}` : ""}`;
 }
 
-function renderHistory() {
-  const showCardio = historyView === "cardio";
-  const sessions = sortSessionsNewestFirst(state.history.filter(s => isCardioSession(s) === showCardio));
-
-  $("historyEmpty").classList.toggle("hidden", sessions.length > 0);
-  $("historyOrder").classList.toggle("hidden", sessions.length < 2); // order only matters with 2+
-  $("historyEmptyTitle").textContent = showCardio ? "No cardio logged yet." : "No sessions logged yet.";
-  $("historyEmptyHint").innerHTML = showCardio
-    ? "After cardio, tap <b>Log today's cardio</b> to save it here."
-    : "After a workout, tap <b>Log today's session</b> to save it here.";
-
-  $("historyList").innerHTML = sessions.map(session => {
-    const date = new Date(session.date).toLocaleDateString(undefined, {
-      weekday: "short", month: "short", day: "numeric", year: "numeric"
-    });
-    // Only mark completed/not completed if you crossed anything off that session
-    // (older sessions, and ones logged without crossing off, show as before)
-    const doneCount = session.items.filter(i => i.done).length;
-    const tracked = doneCount > 0;
-    const count = tracked && doneCount < session.items.length
-      ? `${doneCount} of ${plural(session.items.length, "exercise")} done`
-      : plural(session.items.length, "exercise");
-    return `<li class="swipe swipe-delete glass">
-      <details class="session">
+// One logged session (a swipe-to-delete card). open = start with its exercises showing.
+function sessionHtml(session, showCardio, words = [], open = false) {
+  const date = new Date(session.date).toLocaleDateString(undefined, {
+    weekday: "short", month: "short", day: "numeric", year: "numeric"
+  });
+  // Only mark completed/not completed if you crossed anything off that session
+  // (older sessions, and ones logged without crossing off, show as before)
+  const doneCount = session.items.filter(i => i.done).length;
+  const tracked = doneCount > 0;
+  const count = tracked && doneCount < session.items.length
+    ? `${doneCount} of ${plural(session.items.length, "exercise")} done`
+    : plural(session.items.length, "exercise");
+  return `<li class="swipe swipe-delete glass">
+      <details class="session"${open ? " open" : ""}>
         <summary>
           <div>
             <div class="date">${escapeHtml(date)}</div>
-            <div><b>${escapeHtml(session.workoutName)}</b></div>
+            <div><b>${highlightText(session.workoutName, words)}</b></div>
           </div>
           <div class="count">${count} ▾</div>
         </summary>
@@ -891,8 +882,8 @@ function renderHistory() {
           ${session.items.map(i => `
             <li${tracked && !i.done ? ` class="skipped"` : ""}>
               ${tracked && !i.done ? `<span class="skipped-label">Not done</span>` : ""}
-              ${historyLineHtml(i, showCardio)}
-              ${i.notes ? `<div class="note">${escapeHtml(i.notes)}</div>` : ""}
+              ${historyLineHtml(i, showCardio, words)}
+              ${i.notes ? `<div class="note">${highlightText(i.notes, words)}</div>` : ""}
             </li>`).join("")}
         </ul>
         <div class="session-actions">
@@ -900,8 +891,104 @@ function renderHistory() {
         </div>
       </details>
     </li>`;
-  }).join("");
 }
+
+/* ---------- Long histories: Year > Month groups, and search ----------
+   Without a search, sessions sit under month headings (and year headings once there's
+   more than one year). Only the newest year and month start open, and only open groups
+   are drawn, so a lifetime of sessions stays quick. Which groups you opened isn't saved.
+   With a search, you get a flat list of the matching sessions instead. */
+
+let historyQuery = "";
+const HISTORY_PAGE = 50;       // search results drawn at a time
+let historyShown = HISTORY_PAGE;
+const groupOpen = new Map();   // group key -> true / false, once you've tapped it
+let historyNodes = new Map();  // group key -> its data, from the last time History was drawn
+
+// The headings and their sessions, newest first: [{ key, level, label, count, defaultOpen, sessions | children }]
+function buildHistoryTree(sessions, view) {
+  const monthNode = (m, defaultOpen) => ({
+    key: `${view}:m:${m.key}`, level: "month", sessions: m.sessions, count: m.sessions.length, defaultOpen,
+    label: m.year === null ? "Unknown date"
+      : new Date(m.year, m.month, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+  });
+  const years = groupMonthsByYear(groupSessionsByMonth(sessions));
+  const dated = years.filter(y => y.year !== null);
+  if (dated.length <= 1) return years.flatMap(y => y.months).map((m, i) => monthNode(m, i === 0));
+  return years.flatMap((y, yi) => y.year === null
+    ? y.months.map(m => monthNode(m, false))
+    : [{
+        key: `${view}:y:${y.year}`, level: "year", label: String(y.year), count: y.count, defaultOpen: yi === 0,
+        children: y.months.map((m, mi) => monthNode(m, yi === 0 && mi === 0))
+      }]);
+}
+
+const isGroupOpen = node => (groupOpen.has(node.key) ? groupOpen.get(node.key) : node.defaultOpen);
+
+function groupHtml(node, showCardio, opening = false) {
+  historyNodes.set(node.key, node);
+  const open = isGroupOpen(node);
+  const body = !open ? "" : `<ul class="group-body history-list${opening ? " opening" : ""}">${
+    node.children ? node.children.map(child => groupHtml(child, showCardio)).join("")
+      : node.sessions.map(session => sessionHtml(session, showCardio)).join("")}</ul>`;
+  return `<li class="history-group ${node.level}" data-key="${node.key}">
+    <button class="group-head" data-group="${node.key}" aria-expanded="${open}"><span>${escapeHtml(node.label)}</span><span class="group-count">${plural(node.count, "session")}</span></button>${body}</li>`;
+}
+
+// Tap a heading: open or close just that group (the rest of the list stays as it is)
+function toggleGroup(key) {
+  const node = historyNodes.get(key);
+  const li = $("historyList").querySelector(`li.history-group[data-key="${key}"]`);
+  if (!node || !li) return;
+  groupOpen.set(key, !isGroupOpen(node));
+  li.outerHTML = groupHtml(node, historyView === "cardio", isGroupOpen(node));
+  $("historyList").querySelector(`[data-group="${key}"]`)?.focus();
+}
+
+function renderHistory() {
+  const showCardio = historyView === "cardio";
+  const all = sortSessionsNewestFirst(state.history.filter(s => isCardioSession(s) === showCardio));
+  const words = searchWords(historyQuery);
+  const searching = words.length > 0;
+  historyNodes = new Map();
+
+  $("historyEmpty").classList.toggle("hidden", all.length > 0);
+  $("historySearch").classList.toggle("hidden", all.length < 5 && !searching); // not worth having until there's a few
+  $("historyOrder").classList.toggle("hidden", all.length < 2 || searching); // order only matters with 2+
+  $("historyEmptyTitle").textContent = showCardio ? "No cardio logged yet." : "No sessions logged yet.";
+  $("historyEmptyHint").innerHTML = showCardio
+    ? "After cardio, tap <b>Log today's cardio</b> to save it here."
+    : "After a workout, tap <b>Log today's session</b> to save it here.";
+
+  if (!searching) {
+    $("historyMatches").classList.add("hidden");
+    $("historyMore").classList.add("hidden");
+    $("historyList").innerHTML = buildHistoryTree(all, historyView).map(node => groupHtml(node, showCardio)).join("");
+    return;
+  }
+  const found = searchSessions(all, historyQuery);
+  const shown = found.slice(0, historyShown);
+  $("historyMatches").textContent = found.length ? `${plural(found.length, "session")} match` : `No sessions match "${historyQuery.trim()}".`;
+  $("historyMatches").classList.remove("hidden");
+  // With only a few results, open them so the matching lines are right there
+  $("historyList").innerHTML = shown.map(session => sessionHtml(session, showCardio, words, found.length <= 10)).join("");
+  $("historyMore").classList.toggle("hidden", found.length <= shown.length);
+}
+
+let historySearchTimer;
+$("historySearch").addEventListener("input", event => {
+  clearTimeout(historySearchTimer);
+  historySearchTimer = setTimeout(() => {
+    historyQuery = event.target.value;
+    historyShown = HISTORY_PAGE;
+    renderHistory();
+  }, 150); // wait for a pause in typing
+});
+
+$("historyMore").addEventListener("click", () => {
+  historyShown += HISTORY_PAGE;
+  renderHistory();
+});
 
 // Delete a session right away; the toast's Undo puts it back where it was
 function deleteSession(id) {
@@ -918,6 +1005,8 @@ function deleteSession(id) {
 }
 
 $("historyList").addEventListener("click", event => {
+  const head = event.target.closest("[data-group]");
+  if (head) return toggleGroup(head.dataset.group);
   const id = event.target.dataset.delete;
   if (id) deleteSession(id);
 });

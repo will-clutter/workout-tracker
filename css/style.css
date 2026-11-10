@@ -483,6 +483,23 @@ body[data-tab="cardio"] #addCardioBtn {
 .setting-label { margin: 18px 2px 8px; font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; }
 .setting-label:first-of-type { margin-top: 4px; }
 .history-order { margin: 0 2px 10px; font-size: 13px; }
+#historySearch { margin-bottom: 12px; }
+#historyMore { width: 100%; margin-top: 4px; }
+/* Year and month headings that fold their sessions away (only open groups are drawn at all) */
+.group-head {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 8px 2px;
+  background: none; border: none; color: inherit; font: inherit; font-weight: 700; text-align: left;
+}
+.group-head::before { content: "▾"; font-size: 12px; color: var(--muted); transition: transform 0.2s var(--ease); }
+.group-head[aria-expanded="false"]::before { transform: rotate(-90deg); }
+.group-head:focus-visible { outline-offset: -2px; border-radius: var(--radius); }
+.group-count { margin-left: auto; color: var(--muted); font-size: 13px; font-weight: 600; }
+.history-group.year > .group-head { font-family: var(--display); font-size: 20px; letter-spacing: 0.3px; }
+.history-group.month > .group-head { font-size: 16px; }
+.group-body { list-style: none; margin: 0; padding: 0; }
+.history-group.year > .group-body { padding-left: 10px; }
+.group-body.opening { animation: fadeUp 0.3s var(--ease); }
+mark { background: var(--accent-glow); color: inherit; border-radius: 3px; padding: 0 2px; }
 .seg {
   position: relative; /* above the pill */
   flex: 1; border: none; background: none; border-radius: 9px; padding: 8px;

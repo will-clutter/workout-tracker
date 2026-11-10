@@ -118,8 +118,11 @@
         <button class="seg on" data-view="workouts" role="tab" aria-selected="true">Workouts</button>
         <button class="seg" data-view="cardio" role="tab" aria-selected="false">Cardio</button>
       </div>
+      <input id="historySearch" class="search hidden" type="search" placeholder="Search sessions, exercises, notes…" aria-label="Search your logged sessions" autocomplete="off">
       <p id="historyOrder" class="history-order muted">Most recent first</p>
+      <p id="historyMatches" class="history-order muted hidden" role="status" aria-live="polite"></p>
       <ul id="historyList" class="history-list"></ul>
+      <button id="historyMore" class="btn ghost hidden">Show more</button>
       <div id="historyEmpty" class="empty">
         <p id="historyEmptyTitle">No sessions logged yet.</p>
         <p id="historyEmptyHint" class="muted"></p>

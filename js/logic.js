@@ -469,6 +469,73 @@ function sortSessionsNewestFirst(sessions) {
     .map(x => x.s);
 }
 
+/* ---------- History: grouping and search ---------- */
+
+// The local year and month (0-11) of a session, or null if its date can't be read
+function sessionMonth(session) {
+  const date = new Date(session && session.date);
+  return Number.isNaN(date.getTime()) ? null : { year: date.getFullYear(), month: date.getMonth() };
+}
+
+// Groups sessions (already newest first) by month: [{ key: "2026-11", year, month, sessions }].
+// Sessions with an unreadable date go in a final { key: "unknown" } group.
+function groupSessionsByMonth(sessions) {
+  const groups = [];
+  const byKey = new Map();
+  for (const session of sessions) {
+    const when = sessionMonth(session);
+    const key = when ? `${when.year}-${String(when.month + 1).padStart(2, "0")}` : "unknown";
+    if (!byKey.has(key)) {
+      const group = { key, year: when ? when.year : null, month: when ? when.month : null, sessions: [] };
+      byKey.set(key, group);
+      groups.push(group);
+    }
+    byKey.get(key).sessions.push(session);
+  }
+  return groups.filter(g => g.key !== "unknown").concat(groups.filter(g => g.key === "unknown"));
+}
+
+// Groups month groups by year: [{ year, months, count }]. The unknown-date group stays alone at the end (year: null).
+function groupMonthsByYear(months) {
+  const years = [];
+  for (const month of months) {
+    let entry = years.find(y => y.year === month.year);
+    if (!entry) { entry = { year: month.year, months: [], count: 0 }; years.push(entry); }
+    entry.months.push(month);
+    entry.count += month.sessions.length;
+  }
+  return years;
+}
+
+// What you typed in the History search box -> lowercase words (extra spaces ignored)
+function searchWords(query) {
+  return String(query ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+}
+
+// A session matches when every word is somewhere in its workout name, an exercise name, or a note
+function sessionMatches(session, query) {
+  const words = searchWords(query);
+  if (!words.length) return true;
+  const text = [session.workoutName, ...(session.items || []).flatMap(i => [i.name, i.notes])]
+    .filter(part => typeof part === "string").join("\n").toLowerCase();
+  return words.every(word => text.includes(word));
+}
+
+// The sessions that match, in the same order
+function searchSessions(sessions, query) {
+  return sessions.filter(session => sessionMatches(session, query));
+}
+
+// Safe HTML for some text, with every search word wrapped in <mark>
+function highlightText(text, words) {
+  const raw = String(text ?? "");
+  if (!words || !words.length) return escapeHtml(raw);
+  const pattern = [...words].sort((a, b) => b.length - a.length)
+    .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  return raw.split(new RegExp(`(${pattern})`, "gi"))
+    .map((part, i) => (i % 2 ? `<mark>${escapeHtml(part)}</mark>` : escapeHtml(part))).join("");
+}
+
 // Lets the tests load these functions. The browser skips this line.
 if (typeof module !== "undefined") {
   module.exports = {
@@ -479,6 +546,7 @@ if (typeof module !== "undefined") {
     newCardioItem, INTENSITIES, cardioSummaryParts, joinDuration, splitDuration, formatDuration, buildCardioHistoryEntry, isCardioSession,
     editDistance, suggestSearch, glideTabIndex,
     stretchForSpeed, sortSessionsNewestFirst, cleanCollapsed, COLLAPSE_KEYS,
+    groupSessionsByMonth, groupMonthsByYear, searchWords, sessionMatches, searchSessions, highlightText,
     moveTodoItem, DEFAULT_SETTINGS, cleanSettings, unitLabels, showWeight, showDistance, storeWeight, storeDistance
   };
 }
