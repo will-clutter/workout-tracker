@@ -459,7 +459,9 @@ body[data-tab="cardio"] #addCardioBtn {
   border-radius: 9px; background: var(--accent);
   transition: transform 0.3s var(--ease);
 }
-.segmented[data-view="cardio"]::before { transform: translateX(calc(100% + 4px)); }
+.segmented[data-view="cardio"]::before, .segmented[data-pick="1"]::before { transform: translateX(calc(100% + 4px)); }
+.setting-label { margin: 18px 2px 8px; font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; }
+.setting-label:first-of-type { margin-top: 4px; }
 .history-order { margin: 0 2px 10px; font-size: 13px; }
 .seg {
   position: relative; /* above the pill */
@@ -731,4 +733,5 @@ body[data-tab="workout"] .toast, body[data-tab="cardio"] .toast {
 /* SVG icons: take the color of the text around them */
 .icon { width: 22px; height: 22px; fill: currentColor; display: block; }
 .icon-btn .icon { margin: auto; }
+.icon.outline { fill: none; } /* line icons (the gear) draw with the stroke set in the SVG */
 .icon.inline { display: inline-block; width: 13px; height: 13px; vertical-align: -2px; } /* sits in a line of text */

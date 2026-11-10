@@ -20,9 +20,51 @@ function defaultState() {
     customExercises: [],
     history: [],
     cardio: { items: [] },
-    collapsed: cleanCollapsed()
+    collapsed: cleanCollapsed(),
+    settings: cleanSettings()
   };
 }
+
+// Settings (saved). Weight and distance are always stored in lb and mi; "metric" only changes what's shown and typed.
+const DEFAULT_SETTINGS = { units: "imperial", durationFormat: "words" };
+const SETTING_CHOICES = { units: ["imperial", "metric"], durationFormat: ["words", "clock"] };
+function cleanSettings(value) {
+  const saved = isRecord(value) ? value : {};
+  return Object.fromEntries(Object.keys(DEFAULT_SETTINGS).map(key =>
+    [key, SETTING_CHOICES[key].includes(saved[key]) ? saved[key] : DEFAULT_SETTINGS[key]]));
+}
+
+/* ---------- Units (stored in lb / mi) ---------- */
+
+const KG_PER_LB = 0.45359237;
+const KM_PER_MI = 1.609344;
+
+function unitLabels(units) {
+  return units === "metric" ? { weight: "kg", distance: "km" } : { weight: "lb", distance: "mi" };
+}
+
+// Stored number (text) -> what to show. Metric: 1 decimal, ".0" dropped; tiny values get more decimals so they never read as 0.
+function showConverted(stored, factor, units) {
+  const n = Number(stored);
+  if (units !== "metric" || stored === "" || !Number.isFinite(n) || n <= 0) return stored ?? "";
+  const metric = n * factor;
+  for (const decimals of [1, 2, 3]) {
+    const text = String(Number(metric.toFixed(decimals)));
+    if (Number(text) > 0) return text;
+  }
+  return "0.001";
+}
+const showWeight = (storedLb, units) => showConverted(storedLb, KG_PER_LB, units);
+const showDistance = (storedMi, units) => showConverted(storedMi, KM_PER_MI, units);
+
+// What was typed in a box -> what to save (always lb / mi). Same rules as savedDecimal; "" if not more than 0.
+function storeConverted(typed, factor, units) {
+  const clean = savedDecimal(typed);
+  if (units !== "metric" || clean === "") return clean;
+  return cleanDecimal(String(Number((Number(clean) / factor).toFixed(3))));
+}
+const storeWeight = (typed, units) => storeConverted(typed, KG_PER_LB, units);
+const storeDistance = (typed, units) => storeConverted(typed, KM_PER_MI, units);
 
 // Which headings are folded away (saved). Anything missing or odd counts as open.
 const COLLAPSE_KEYS = ["exercises", "completed", "activities", "cardioCompleted"];
@@ -155,6 +197,7 @@ function parseSavedState(text) {
         if (!isRecord(saved.cardio)) saved.cardio = {}; // saved before the Cardio tab existed
         saved.cardio.items = records(saved.cardio.items);
         saved.collapsed = cleanCollapsed(saved.collapsed); // saved before collapsing existed
+        saved.settings = cleanSettings(saved.settings); // saved before settings existed
 
         // Duration used to be whole minutes; now it's seconds
         const cardioLists = [saved.cardio, ...saved.history.filter(isCardioSession)];
@@ -206,15 +249,15 @@ const INTENSITIES = ["Low", "Medium", "High"];
 
 // The filled-in cardio fields, ready to show: ["30 min", "High intensity", "145 bpm", "320 cal", "2.5 mi"].
 // Anything left empty or set to 0 is skipped, so an untouched entry gives [].
-function cardioSummaryParts(item) {
+function cardioSummaryParts(item, settings = DEFAULT_SETTINGS) {
   const positive = value => Number.isFinite(Number(value)) && Number(value) > 0; // blank, 0, negative and nonsense are all "not filled in"
   const parts = [];
   const seconds = item.durationSec ?? (positive(item.duration) ? item.duration * 60 : ""); // older entries had minutes
-  if (positive(seconds)) parts.push(formatDuration(seconds));
+  if (positive(seconds)) parts.push(formatDuration(seconds, settings.durationFormat));
   if (String(item.intensity ?? "").trim() !== "") parts.push(`${item.intensity} intensity`);
   if (positive(item.heartRate)) parts.push(`${item.heartRate} bpm`);
   if (positive(item.calories)) parts.push(`${item.calories} cal`);
-  if (positive(item.distance)) parts.push(`${item.distance} mi`);
+  if (positive(item.distance)) parts.push(`${showDistance(item.distance, settings.units)} ${unitLabels(settings.units).distance}`);
   return parts;
 }
 
@@ -235,9 +278,14 @@ function splitDuration(sec) {
 }
 
 // "25 min", "45 sec", "25m 30s", "1h 5m", "1h 5m 30s". Zero parts are left out; 0 or blank gives "".
-function formatDuration(sec) {
+// style "clock" gives "1:05:30", or "5:30" / "0:45" under an hour.
+function formatDuration(sec, style = "words") {
   const { h, m, s } = splitDuration(sec);
   if (h === "") return "";
+  if (style === "clock") {
+    const two = n => String(n).padStart(2, "0");
+    return h ? `${h}:${two(m)}:${two(s)}` : `${m}:${two(s)}`;
+  }
   if (!h && !s) return `${m} min`;
   if (!h && !m) return `${s} sec`;
   return [h && `${h}h`, m && `${m}m`, s && `${s}s`].filter(Boolean).join(" ");
@@ -413,6 +461,7 @@ if (typeof module !== "undefined") {
     exerciseMatches, isCardio,
     newCardioItem, INTENSITIES, cardioSummaryParts, joinDuration, splitDuration, formatDuration, buildCardioHistoryEntry, isCardioSession,
     editDistance, suggestSearch, glideTabIndex,
-    stretchForSpeed, sortSessionsNewestFirst, cleanCollapsed, COLLAPSE_KEYS
+    stretchForSpeed, sortSessionsNewestFirst, cleanCollapsed, COLLAPSE_KEYS,
+    DEFAULT_SETTINGS, cleanSettings, unitLabels, showWeight, showDistance, storeWeight, storeDistance
   };
 }

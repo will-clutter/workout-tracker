@@ -46,6 +46,11 @@ function saveState() {
   }
 }
 
+// "imperial" or "metric" (weights and distances are always saved in lb / mi)
+function units() {
+  return state.settings.units;
+}
+
 // The workout currently on screen
 function activeWorkout() {
   return findActiveWorkout(state);
@@ -261,7 +266,7 @@ function thumbHtml(ex, size = "") {
 // "3 sets · 10 reps · 60 lb"
 function summaryHtml(item) {
   const parts = [`<b>${escapeHtml(item.sets || "–")}</b> sets`, `<b>${escapeHtml(item.reps || "–")}</b> reps`];
-  if (item.weight) parts.push(`<b>${escapeHtml(item.weight)}</b> lb`);
+  if (item.weight) parts.push(`<b>${escapeHtml(showWeight(item.weight, units()))}</b> ${unitLabels(units()).weight}`);
   return parts.join(" · ") + (item.notes ? ` · ${ICONS.note}` : "");
 }
 
@@ -305,8 +310,8 @@ function buildExerciseCard(item) {
         <div class="stat">
           <label>Weight</label>
           <div class="weight-wrap">
-            <input type="text" inputmode="decimal" autocomplete="off" placeholder="—" data-field="weight" value="${escapeHtml(item.weight)}">
-            <span class="unit">lbs</span>
+            <input type="text" inputmode="decimal" autocomplete="off" placeholder="—" data-field="weight" value="${escapeHtml(showWeight(item.weight, units()))}">
+            <span class="unit">${unitLabels(units()).weight}</span>
           </div>
         </div>
       </div>
@@ -386,7 +391,8 @@ function handleCardInput(event) {
     const box = key => card.querySelector(`[data-dur="${key}"]`).value;
     item.durationSec = joinDuration(box("h"), box("m"), box("s"));
   } else if (DECIMAL_FIELDS.includes(field)) {
-    item[field] = savedDecimal(event.target.value); // "0" and "0." are kept in the box while you type, but saved as empty
+    // "0" and "0." are kept in the box while you type, but saved as empty. Always saved in lb / mi.
+    item[field] = (field === "weight" ? storeWeight : storeDistance)(event.target.value, units());
   } else {
     item[field] = event.target.value;
   }
@@ -397,7 +403,10 @@ function handleCardInput(event) {
 // When you leave a weight / distance box, tidy it so what you see is what's saved ("0." becomes empty, "5." becomes 5)
 function handleCardChange(event) {
   const box = event.target;
-  if (DECIMAL_FIELDS.includes(box.dataset.field)) box.value = savedDecimal(box.value);
+  const field = box.dataset.field;
+  if (!DECIMAL_FIELDS.includes(field)) return;
+  const item = itemForCard(box.closest(".card"));
+  box.value = item ? (field === "weight" ? showWeight : showDistance)(item[field], units()) : savedDecimal(box.value);
 }
 
 ["cards", "cardioCards"].forEach(id => {
@@ -544,9 +553,9 @@ function renderCardio() {
 // "1h 30m · High intensity · 145 bpm" with the numbers (or the intensity) in bold. Empty if nothing's filled in.
 function cardioSummaryHtml(item) {
   const bold = part => /\d/.test(part)
-    ? part.replace(/(\d[\d.,]*)/g, "<b>$1</b>")
+    ? part.replace(/(\d[\d.,:]*)/g, "<b>$1</b>")
     : part.replace(/^(\S+)/, "<b>$1</b>");
-  const parts = cardioSummaryParts(item).map(part => bold(escapeHtml(part)));
+  const parts = cardioSummaryParts(item, state.settings).map(part => bold(escapeHtml(part)));
   if (item.notes) parts.push(ICONS.note);
   return parts.join(" · ");
 }
@@ -602,7 +611,7 @@ function buildCardioCard(item) {
         ${durationStatHtml(item.durationSec)}
         ${cardioStatHtml("Heart rate", "heartRate", item.heartRate, "bpm", "numeric")}
         ${cardioStatHtml("Calories", "calories", item.calories, "cal", "numeric")}
-        ${cardioStatHtml("Distance", "distance", item.distance, "mi")}
+        ${cardioStatHtml("Distance", "distance", showDistance(item.distance, units()), unitLabels(units()).distance)}
       </div>
       <div class="intensity">
         <span class="intensity-label">Intensity</span>
@@ -709,10 +718,10 @@ $("historyToggle").addEventListener("click", event => {
 // One exercise line in a History session
 function historyLineHtml(item, isCardio) {
   if (isCardio) {
-    const parts = cardioSummaryParts(item);
+    const parts = cardioSummaryParts(item, state.settings);
     return `<b>${escapeHtml(item.name)}</b>${parts.length ? ` — ${escapeHtml(parts.join(" · "))}` : ""}`;
   }
-  return `<b>${escapeHtml(item.name)}</b> — ${escapeHtml(item.sets || "?")} × ${escapeHtml(item.reps || "?")}${item.weight ? ` @ ${escapeHtml(item.weight)} lbs` : ""}`;
+  return `<b>${escapeHtml(item.name)}</b> — ${escapeHtml(item.sets || "?")} × ${escapeHtml(item.reps || "?")}${item.weight ? ` @ ${escapeHtml(showWeight(item.weight, units()))} ${unitLabels(units()).weight}` : ""}`;
 }
 
 function renderHistory() {
@@ -1546,9 +1555,50 @@ function renderThemeSwatches() {
     </button>`).join("");
 }
 
+// Units and duration display: two-choice switches that reuse the History toggle's sliding pill
+function renderSettingPicks() {
+  document.querySelectorAll("#settingsSheet .segmented").forEach(group => {
+    const current = state.settings[group.dataset.setting];
+    const buttons = [...group.querySelectorAll(".seg")];
+    group.dataset.pick = buttons.findIndex(b => b.dataset.value === current);
+    buttons.forEach(b => {
+      const on = b.dataset.value === current;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-checked", String(on));
+      b.tabIndex = on ? 0 : -1; // radio group: one tab stop, arrows move within it
+    });
+  });
+}
+
 $("settingsBtn").addEventListener("click", () => {
   renderThemeSwatches();
+  renderSettingPicks();
   openSheet("settingsSheet");
+});
+
+function chooseSetting(group, button) {
+  state.settings[group.dataset.setting] = button.dataset.value;
+  saveState();
+  renderSettingPicks();
+  renderWorkout();
+  renderCardio();
+  renderHistory();
+}
+
+document.querySelectorAll("#settingsSheet .segmented").forEach(group => {
+  group.addEventListener("click", event => {
+    const button = event.target.closest(".seg");
+    if (button) chooseSetting(group, button);
+  });
+  group.addEventListener("keydown", event => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const buttons = [...group.querySelectorAll(".seg")];
+    const next = buttons[(buttons.indexOf(document.activeElement) + step + buttons.length) % buttons.length];
+    chooseSetting(group, next);
+    next.focus();
+  });
 });
 
 $("themeSwatches").addEventListener("click", event => {
