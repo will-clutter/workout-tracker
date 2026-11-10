@@ -447,27 +447,28 @@ body[data-tab="cardio"] #addCardioBtn {
 /* ---------- History ---------- */
 /* Workouts | Cardio switch */
 .segmented {
-  display: flex; gap: 4px; padding: 4px; margin-bottom: 14px;
+  position: relative; display: flex; gap: 4px; padding: 4px; margin-bottom: 14px;
   background: var(--input); border: 1px solid var(--border); border-radius: 12px;
 }
+/* The highlighted pill behind the buttons; it slides to the other half when data-view changes */
+.segmented::before {
+  content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px;
+  width: calc((100% - 12px) / 2); /* half of what's left after the padding and the gap */
+  border-radius: 9px; background: var(--accent);
+  transition: transform 0.3s var(--ease);
+}
+.segmented[data-view="cardio"]::before { transform: translateX(calc(100% + 4px)); }
 .history-order { margin: 0 2px 10px; font-size: 13px; }
 .seg {
+  position: relative; /* above the pill */
   flex: 1; border: none; background: none; border-radius: 9px; padding: 8px;
   color: var(--muted); font-weight: 700; font-size: 14px;
-  transition: background 0.25s var(--ease), color 0.25s, box-shadow 0.25s;
+  transition: color 0.25s;
 }
-.seg.on { background: var(--accent); color: var(--on-accent); }
-/* The list item (not the session) carries the entrance animation and spacing, so the
-   session itself is free to slide sideways when swiped (see enableSwipe) */
-.history-list > li { margin-bottom: 10px; border-radius: var(--radius); animation: cardIn 0.35s var(--ease) both; }
-.session { border-radius: var(--radius); overflow: hidden; }
-/* Switching Workouts <-> Cardio: the list slides in from the side you moved toward */
-/* Clip sideways so the slide can never widen the page (that nudged the fixed tab bar) */
-#tab-history.active { overflow-x: clip; }
-.history-list.slide-left { animation: slideFromRight 0.3s var(--ease); }
-.history-list.slide-right { animation: slideFromLeft 0.3s var(--ease); }
-@keyframes slideFromRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
-@keyframes slideFromLeft { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
+.seg.on { color: var(--on-accent); }
+/* Same as the exercise cards: the list item is the card (it stays put and clips),
+   and the session inside it slides over the Delete strip when swiped (see enableSwipe) */
+.history-list > li { margin-bottom: 10px; border-radius: var(--radius); }
 .session summary { padding: 14px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; list-style: none; }
 .session summary::-webkit-details-marker { display: none; }
 .session .date { color: var(--accent); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; }

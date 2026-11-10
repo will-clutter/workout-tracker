@@ -642,17 +642,13 @@ $("historyToggle").addEventListener("click", event => {
   const seg = event.target.closest(".seg");
   if (!seg || seg.dataset.view === historyView) return;
   historyView = seg.dataset.view;
+  $("historyToggle").dataset.view = historyView; // slides the highlighted pill across
   $("historyToggle").querySelectorAll(".seg").forEach(s => {
     s.classList.toggle("on", s === seg);
     s.setAttribute("aria-selected", s === seg);
   });
-  renderHistory();
 
-  // Slide the new list in: Cardio comes from the right, Workouts from the left
-  const list = $("historyList");
-  list.classList.remove("slide-left", "slide-right");
-  void list.offsetWidth; // restart the animation if it was still running
-  list.classList.add(historyView === "cardio" ? "slide-left" : "slide-right");
+  renderHistory();
 });
 
 // One exercise line in a History session
@@ -686,8 +682,8 @@ function renderHistory() {
     const count = tracked && doneCount < session.items.length
       ? `${doneCount} of ${plural(session.items.length, "exercise")} done`
       : plural(session.items.length, "exercise");
-    return `<li class="swipe swipe-delete">
-      <details class="session glass">
+    return `<li class="swipe swipe-delete glass">
+      <details class="session">
         <summary>
           <div>
             <div class="date">${escapeHtml(date)}</div>
