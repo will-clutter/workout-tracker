@@ -2,6 +2,13 @@
 
 What changed in Workout Logbook, newest first.
 
+## [1.1.0](https://github.com/will-clutter/workout-tracker/compare/v1.0.1...v1.1.0) (2026-11-10)
+
+
+### Features
+
+* History "Most recent first" label and speed-based glide stretch ([c25fae4](https://github.com/will-clutter/workout-tracker/commit/c25fae40d996ef1fab418d29d1ab205980412c95))
+
 ## [1.0.1](https://github.com/will-clutter/workout-tracker/compare/v1.0.0...v1.0.1) (2026-11-10)
 
 
