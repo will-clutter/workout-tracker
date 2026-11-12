@@ -178,6 +178,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
   transition: transform 0.12s var(--ease), background 0.2s, color 0.2s;
 }
 .icon-btn:hover { background: var(--input); color: var(--text); }
+#reorderBtn { width: 36px; height: 36px; }
+#reorderBtn .icon { width: 20px; height: 20px; }
+#reorderBtn.active { background: var(--accent-glow); color: var(--accent-soft); }
 
 /* ---------- Top bar ---------- */
 .topbar {
@@ -315,11 +318,18 @@ main { position: relative; }
   position: absolute; top: 0; right: 0; width: 44px; height: 84px; /* 84px = the row's height */
   display: grid; place-items: center; padding: 0; border: none; background: none;
   color: var(--muted); cursor: grab; touch-action: none; /* dragging it must not scroll the page */
+  /* Hidden until Reorder is on: slides in from the right. Hidden grips can't be tapped or tabbed to. */
+  /* (`translate`, not `transform`, so the handle still follows the card's swipe offset) */
+  opacity: 0; translate: 16px 0; visibility: hidden; pointer-events: none;
+  transition: opacity 0.25s var(--ease), translate 0.25s var(--ease), transform 0.3s var(--ease), visibility 0s 0.25s;
+}
+.exercise-list.reordering .card > .drag-handle {
+  opacity: 1; translate: none; visibility: visible; pointer-events: auto; transition-delay: 0s;
 }
 .card > .drag-handle:hover, .card.dragging > .drag-handle { color: var(--text); }
 .drag-handle:focus-visible { outline-offset: -4px; border-radius: var(--radius); }
 .drag-handle .icon { width: 20px; height: 20px; }
-.card.has-handle .row { padding-right: 48px; } /* keep the mini map clear of the grip */
+.exercise-list.reordering .card.has-handle .row { padding-right: 48px; } /* keep the mini map clear of the grip */
 .card.shifting { transition: transform 0.2s var(--ease); }
 .card.dragging {
   z-index: 5; cursor: grabbing; transition: none; scale: 1.02;
@@ -334,7 +344,7 @@ main { position: relative; }
 .row {
   display: flex; align-items: center; gap: 12px; width: 100%;
   background: none; border: none; text-align: left; padding: 10px 12px 10px 14px;
-  transition: transform 0.12s var(--ease);
+  transition: transform 0.12s var(--ease), padding-right 0.25s var(--ease);
 }
 /* The card clips anything outside it, so the keyboard focus ring has to sit inside the row */
 .row:focus-visible { outline-offset: -3px; border-radius: var(--radius); }

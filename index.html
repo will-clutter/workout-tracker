@@ -64,8 +64,9 @@
 
       <!-- Exercise cards: still to do, then crossed off (swipe left to cross off) -->
       <div id="cards">
-        <div id="exercisesLabel" class="section-label">
+        <div id="exercisesLabel" class="section-label completed-head">
           <button class="collapse-toggle" data-key="exercises" data-list="exerciseList" aria-expanded="true" aria-controls="exerciseList">Exercises</button>
+          <button id="reorderBtn" class="icon-btn hidden" aria-label="Reorder exercises" title="Reorder" aria-pressed="false"></button>
         </div>
         <ul id="exerciseList" class="exercise-list"></ul>
         <div id="completedHead" class="section-label completed-head hidden">

@@ -114,6 +114,7 @@ const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: r
 const ICONS = {
   note: `<svg class="icon inline" viewBox="0 0 448 512" role="img" aria-label="Has notes"><path d="M64 480c-35.3 0-64-28.7-64-64L0 96C0 60.7 28.7 32 64 32l320 0c35.3 0 64 28.7 64 64l0 213.5c0 17-6.7 33.3-18.7 45.3L322.7 461.3c-12 12-28.3 18.7-45.3 18.7L64 480zM389.5 304L296 304c-13.3 0-24 10.7-24 24l0 93.5 117.5-117.5z"/></svg>`,
   grip: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>`,
+  reorder: `<svg class="icon outline" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20V4M3 8l4-4 4 4"/><path d="M17 4v16M13 16l4 4 4-4"/></svg>`,
   trash: `<svg class="icon" viewBox="0 0 448 512" aria-hidden="true"><path d="M136.7 5.9L128 32 32 32C14.3 32 0 46.3 0 64S14.3 96 32 96l384 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0-8.7-26.1C306.9-7.2 294.7-16 280.9-16L167.1-16c-13.8 0-26 8.8-30.4 21.9zM416 144L32 144 53.1 467.1C54.7 492.4 75.7 512 101 512L347 512c25.3 0 46.3-19.6 47.9-44.9L416 144z"/></svg>`
 };
 
@@ -121,10 +122,26 @@ const ICONS = {
    WORKOUT TAB
    ============================================================ */
 
+let reorderMode = false; // grips only show while the Reorder button is on (not saved)
+
+// Grips are always on the cards; the "reordering" class on the list slides them in (CSS), so
+// toggling the mode never redraws the cards.
+function syncReorderUi() {
+  $("exerciseList").classList.toggle("reordering", reorderMode);
+  $("reorderBtn").classList.toggle("active", reorderMode);
+  $("reorderBtn").setAttribute("aria-pressed", String(reorderMode));
+}
+
 function renderWorkout() {
   const workout = activeWorkout();
   $("workoutName").textContent = workout.name;
   $("switcherName").textContent = workout.name;
+
+  // Reorder button: only useful with 2+ still-to-do cards; leaving that state ends reorder mode
+  const canReorderAny = workout.items.filter(i => !i.doneAt).length >= 2;
+  if (!canReorderAny) reorderMode = false;
+  $("reorderBtn").classList.toggle("hidden", !canReorderAny);
+  syncReorderUi();
 
   fillCardLists(workout.items, buildExerciseCard, {
     todo: "exerciseList", done: "completedList", todoLabel: "exercisesLabel", doneHead: "completedHead"
@@ -604,6 +621,13 @@ function setDone(card, isDone) {
     }
   }, 400);
 }
+
+// The Reorder button next to "Exercises" shows or hides the drag grips
+$("reorderBtn").innerHTML = ICONS.reorder;
+$("reorderBtn").addEventListener("click", () => {
+  reorderMode = !reorderMode;
+  syncReorderUi();
+});
 
 // The Reset buttons next to "Completed"
 [["resetDoneBtn", LISTS.workout], ["cardioResetBtn", LISTS.cardio]].forEach(([id, list]) => {
