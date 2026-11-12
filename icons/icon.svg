@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect fill="#1a1416"/>
+  <!-- Dumbbell, tilted 45deg and kept inside the center ~80% so it survives a maskable crop -->
+  <g transform="translate(256 256) rotate(-45) scale(1.2) translate(-256 -256)" fill="#d4707e">
+    <rect x="186" y="244" width="140" height="24" rx="6" fill="#e3a4ad"/>
+    <rect x="150" y="196" width="36" height="120" rx="10"/>
+    <rect x="326" y="196" width="36" height="120" rx="10"/>
+    <rect x="114" y="218" width="36" height="76" rx="8" fill="#8f4553"/>
+    <rect x="362" y="218" width="36" height="76" rx="8" fill="#8f4553"/>
+  </g>
+</svg>
