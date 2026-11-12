@@ -2,6 +2,19 @@
 
 What changed in Workout Logbook, newest first.
 
+## [1.4.0](https://github.com/will-clutter/workout-tracker/compare/v1.3.0...v1.4.0) (2026-11-12)
+
+
+### Features
+
+* add web app manifest and dumbbell icons ([dec07fb](https://github.com/will-clutter/workout-tracker/commit/dec07fb88ed481d5a14534ad406ce4d35e7586e3))
+* reorder button on the Exercises header slides the drag grips in ([8c33b8f](https://github.com/will-clutter/workout-tracker/commit/8c33b8ffed87eb9a2bf274c114d5147a04431144))
+
+
+### Bug Fixes
+
+* cards close when marked done, and swipes confirm at a third of the width ([95e661c](https://github.com/will-clutter/workout-tracker/commit/95e661c453c673a090e0f87eaff81915f3ec46b7))
+
 ## [1.3.0](https://github.com/will-clutter/workout-tracker/compare/v1.2.0...v1.3.0) (2026-11-10)
 
 
