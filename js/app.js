@@ -587,13 +587,16 @@ function removeItem(item, card) {
    A crossed-off exercise has doneAt = the time you finished it.
    They reset with the Reset button, or on their own on a later day. */
 
-// Swipe a card left (at least halfway) to cross it off...
-enableSwipe($("exerciseList"), ".card", -1, 0.5, card => setDone(card, true));
+// How far a swipe has to go to count, as a share of the row's width (a third)
+const SWIPE_THRESHOLD = 1 / 3;
+
+// Swipe a card left (at least a third of the way) to cross it off...
+enableSwipe($("exerciseList"), ".card", -1, SWIPE_THRESHOLD, card => setDone(card, true));
 // ...and swipe a crossed-off card right to bring it back
-enableSwipe($("completedList"), ".card", 1, 0.5, card => setDone(card, false));
+enableSwipe($("completedList"), ".card", 1, SWIPE_THRESHOLD, card => setDone(card, false));
 // Same for cardio
-enableSwipe($("cardioList"), ".card", -1, 0.5, card => setDone(card, true));
-enableSwipe($("cardioCompletedList"), ".card", 1, 0.5, card => setDone(card, false));
+enableSwipe($("cardioList"), ".card", -1, SWIPE_THRESHOLD, card => setDone(card, true));
+enableSwipe($("cardioCompletedList"), ".card", 1, SWIPE_THRESHOLD, card => setDone(card, false));
 
 function setDone(card, isDone) {
   const item = itemForCard(card);
@@ -601,6 +604,7 @@ function setDone(card, isDone) {
   const list = listForCard(card);
   const holder = list.holder();
   if (isDone) item.doneAt = Date.now(); else delete item.doneAt;
+  openCards.delete(item.uid); // moving between lists closes the card
   saveState();
 
   // Draw (or erase) the line through the name first, then move the card
@@ -1297,7 +1301,7 @@ document.querySelectorAll(".close-sheet").forEach(button => {
   Lets you drag rows in `list` sideways.
   rowSelector = which rows can be swiped
   direction   = 1 for right, -1 for left
-  threshold   = how far to drag to count, as a share of the row's width (0.5 = half)
+  threshold   = how far to drag to count, as a share of the row's width (0.5 = half; see SWIPE_THRESHOLD)
   onSwipe(row) runs if you let go past the threshold; otherwise the row snaps back.
 
   Up/down drags are ignored, so the list still scrolls normally.
@@ -1532,9 +1536,9 @@ $("resultsList").addEventListener("click", event => {
   if (result) openDetail(result.dataset.id);
 });
 
-// Swipe a result right (at least halfway) to add it without opening it
+// Swipe a result right (at least a third of the way) to add it without opening it
 function enableSwipeToAdd(resultsList, list) {
-  enableSwipe(resultsList, "li.swipe", 1, 0.5, row => {
+  enableSwipe(resultsList, "li.swipe", 1, SWIPE_THRESHOLD, row => {
     const result = row.querySelector(".result");
     const ex = getExercise(result.dataset.id);
     if (isInList(list, ex.id)) return showToast(`Already in ${list.label()}`);
