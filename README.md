@@ -34,10 +34,10 @@ Checked items are implemented. Unchecked items are planned.
 - [x] Multiple low-glare color themes
 - [x] Local storage persistence
 - [ ] Offline support (service worker and web manifest)
-- [ ] Always-visible Add button and collapsible sections
-- [ ] Settings: color scheme, Imperial / Metric units, duration display format
-- [ ] Drag to reorder exercises
-- [ ] History polish: swipe to delete with Undo, animated Workouts / Cardio switch
+- [x] Always-visible Add button and collapsible sections
+- [x] Settings: color scheme, Imperial / Metric units, duration display format
+- [x] Drag to reorder exercises
+- [x] History polish: swipe to delete with Undo, animated Workouts / Cardio switch
 - [ ] Export and import backup
 - [ ] Unique IDs for every workout and cardio entry (with migration for existing data)
 - [ ] Cloud sync with Supabase (PostgreSQL + Row Level Security)

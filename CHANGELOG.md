@@ -2,6 +2,14 @@
 
 What changed in Workout Logbook, newest first.
 
+## [1.3.0](https://github.com/will-clutter/workout-tracker/compare/v1.2.0...v1.3.0) (2026-11-10)
+
+
+### Features
+
+* drag still-to-do exercises into your own order with a grip handle or arrow keys ([94c2412](https://github.com/will-clutter/workout-tracker/commit/94c241284a140d472a6e6e8ea8e2179a70bc0805))
+* History groups sessions by year and month and adds search ([87cd1e9](https://github.com/will-clutter/workout-tracker/commit/87cd1e9c3a2b6627310a55cced52c20a0388acaf))
+
 ## [1.2.0](https://github.com/will-clutter/workout-tracker/compare/v1.1.0...v1.2.0) (2026-11-10)
 
 
