@@ -2,6 +2,44 @@
 
 What changed in Workout Logbook, newest first.
 
+## [1.5.0](https://github.com/will-clutter/workout-tracker/compare/workout-logbook-v1.4.0...workout-logbook-v1.5.0) (2026-11-13)
+
+
+### Features
+
+* add service worker for offline use ([3b957b7](https://github.com/will-clutter/workout-tracker/commit/3b957b7dad77358d2a409a5768ff6d9057768d1c))
+* add web app manifest and dumbbell icons ([dec07fb](https://github.com/will-clutter/workout-tracker/commit/dec07fb88ed481d5a14534ad406ce4d35e7586e3))
+* collapsing a list piles the cards up and expanding unravels them, with rapid taps reversing smoothly ([415f7a6](https://github.com/will-clutter/workout-tracker/commit/415f7a6f687811a1998be10474ec1615834fe270))
+* drag still-to-do exercises into your own order with a grip handle or arrow keys ([94c2412](https://github.com/will-clutter/workout-tracker/commit/94c241284a140d472a6e6e8ea8e2179a70bc0805))
+* export and import backup ([fa8aca9](https://github.com/will-clutter/workout-tracker/commit/fa8aca9d50add7c2070694bd2571860dc6d94c46))
+* floating Add button and collapsible Exercises/Activities/Completed headings ([1a07f06](https://github.com/will-clutter/workout-tracker/commit/1a07f068fed72b8bb32678ae07add57e5edd034b))
+* History "Most recent first" label and speed-based glide stretch ([c25fae4](https://github.com/will-clutter/workout-tracker/commit/c25fae40d996ef1fab418d29d1ab205980412c95))
+* History groups sessions by year and month and adds search ([87cd1e9](https://github.com/will-clutter/workout-tracker/commit/87cd1e9c3a2b6627310a55cced52c20a0388acaf))
+* History swipe-left to delete with Undo, and slide animation between Workouts and Cardio ([0c398bb](https://github.com/will-clutter/workout-tracker/commit/0c398bb44efc1c08da723ffa316c3987608a8836))
+* hold and glide across the tab bar ([8de64e1](https://github.com/will-clutter/workout-tracker/commit/8de64e1f9ec0a4eab78cc5ea9f2525ac45275b4d))
+* make hold-and-glide on the tab bar visibly react ([fccdee3](https://github.com/will-clutter/workout-tracker/commit/fccdee3f79aebf5cded0f0a87cc411e206b1eefe))
+* reorder button on the Exercises header slides the drag grips in ([8c33b8f](https://github.com/will-clutter/workout-tracker/commit/8c33b8ffed87eb9a2bf274c114d5147a04431144))
+* Settings sheet with Imperial/Metric units and a duration display format ([d8c6c5b](https://github.com/will-clutter/workout-tracker/commit/d8c6c5b545598186ad86edd204945363ab138346))
+* softer colors with lighter-surface elevation ([f8f3f06](https://github.com/will-clutter/workout-tracker/commit/f8f3f06c3b44352e829d2bff4bc28d8c33706b17))
+* switch heading font from Cinzel to Outfit ([883e3e4](https://github.com/will-clutter/workout-tracker/commit/883e3e4806c8dd8f971fc13b3462c557c0c189ed))
+
+
+### Bug Fixes
+
+* cards close when marked done, and swipes confirm at a third of the width ([95e661c](https://github.com/will-clutter/workout-tracker/commit/95e661c453c673a090e0f87eaff81915f3ec46b7))
+* History swipe-to-delete strip follows the card pattern, and the Workouts/Cardio toggle pill slides ([636e533](https://github.com/will-clutter/workout-tracker/commit/636e5335f80a04e9244d1867f2618dbaf09a8b2d))
+* improve accessibility toward WCAG 2.2 AA ([4838e45](https://github.com/will-clutter/workout-tracker/commit/4838e455858cc3268948172292be38c6429f4db2))
+* keep the tab bar circle centered on its icon while held ([2675443](https://github.com/will-clutter/workout-tracker/commit/2675443d0cbb608de0bf3b8818c13ff6a96d9e40))
+* make the resting floating Add button a circle and honor reduced motion ([88ecb2d](https://github.com/will-clutter/workout-tracker/commit/88ecb2d61d73093638d86b505aece31af30a5539))
+* remove tab-switch lag by hiding tabs with visibility instead of display:none ([8c736ba](https://github.com/will-clutter/workout-tracker/commit/8c736ba48177b99e6b67eb0354970c16b79f1614))
+* run only *.test.js files in npm test ([cfcd438](https://github.com/will-clutter/workout-tracker/commit/cfcd43801cc470b948d3df953a4f8d85b994f282))
+
+
+### Performance Improvements
+
+* lighter card shadows and skip off-screen cards ([f4c0549](https://github.com/will-clutter/workout-tracker/commit/f4c054910cb82ba25a1fd6d81f7c632230cfded1))
+* remove background drift and card blur to reduce lag ([a232ae3](https://github.com/will-clutter/workout-tracker/commit/a232ae3e30a47223bc1b18e0e535a788c330e5c5))
+
 ## [1.4.0](https://github.com/will-clutter/workout-tracker/compare/v1.3.0...v1.4.0) (2026-11-12)
 
 
