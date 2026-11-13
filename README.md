@@ -1,3 +1,5 @@
+![Tests](https://github.com/will-clutter/workout-tracker/actions/workflows/test.yml/badge.svg)
+
 # Workout Tracker
 
 A mobile-first workout tracker built with vanilla JavaScript, designed with
