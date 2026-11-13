@@ -19,6 +19,7 @@ const PRECACHE = [
   "js/bodymap.js",
   "js/main.js",
   "js/store.js",
+  "js/ui/toast.js",
   "js/app.js",
   "icons/icon.svg",
   "icons/icon-192.png",

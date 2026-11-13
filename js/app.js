@@ -15,6 +15,7 @@ import {
   LISTS, listForCard, isInList, getExercise,
   $, prefersReducedMotion, ICONS
 } from "./store.js";
+import { showToast } from "./ui/toast.js";
 
 store.state = loadState();
 
@@ -1891,29 +1892,6 @@ function showForm({ title, fields = [], submitLabel = "Save", musclePicker = fal
 // "Are you sure?" question. Returns true or false.
 async function confirmDialog(title, message, confirmLabel) {
   return (await showForm({ title, message, submitLabel: confirmLabel, danger: true })) !== null;
-}
-
-/* ============================================================
-   TOAST (little message at the bottom)
-   ============================================================ */
-
-let toastTimer;
-export function showToast(message, actionLabel, onAction) {
-  const toast = $("toast");
-  toast.innerHTML = escapeHtml(message);
-  toast.style.pointerEvents = actionLabel ? "auto" : "none"; // only clickable when it has a button
-
-  if (actionLabel) {
-    const btn = document.createElement("button");
-    btn.textContent = actionLabel;
-    btn.style.cssText = "margin-left:12px;background:none;border:none;color:var(--accent-soft);font-weight:800;padding:10px 8px;margin:-10px -8px -10px 4px"; // big tap area, same look
-    btn.onclick = () => { onAction(); toast.classList.remove("show"); };
-    toast.appendChild(btn);
-  }
-
-  toast.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("show"), actionLabel ? 4000 : 2200);
 }
 
 /* ============================================================
