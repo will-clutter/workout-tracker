@@ -32,6 +32,7 @@ const PRECACHE = [
   "js/custom-exercises.js",
   "js/workouts.js",
   "js/reorder.js",
+  "js/workout.js",
   "js/app.js",
   "icons/icon.svg",
   "icons/icon-192.png",

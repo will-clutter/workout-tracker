@@ -6,8 +6,7 @@ import { $, store, saveState, ICONS } from "./store.js";
 import { showToast } from "./ui/toast.js";
 import { openSheet, closeSheet } from "./ui/sheets.js";
 import { showForm, confirmDialog } from "./ui/forms.js";
-// TEMP: this moves out of app.js in a later step
-import { renderWorkout } from "./app.js";
+import { renderWorkout } from "./workout.js";
 
 function renderWorkoutsList() {
   $("workoutsList").innerHTML = store.state.workouts.map(w => `

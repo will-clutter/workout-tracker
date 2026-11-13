@@ -4,8 +4,7 @@
    ============================================================ */
 
 import { $, saveState, activeWorkout, LISTS } from "./store.js";
-// TEMP: this moves out of app.js in the last step
-import { renderAnimated } from "./app.js";
+import { renderAnimated } from "./workout.js";
 
 function announce(message) {
   $("liveStatus").textContent = message;

@@ -5,8 +5,7 @@
    ============================================================ */
 
 import { showToast } from "./ui/toast.js";
-// TEMP: these still live in app.js until their own files exist
-import { summaryHtml, renderWorkout } from "./app.js";
+import { summaryHtml, renderWorkout } from "./workout.js";
 import { renderResults } from "./browser.js";
 import { cardioSummaryHtml, renderCardio, renderCardioResults } from "./cardio.js";
 

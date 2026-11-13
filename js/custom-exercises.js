@@ -8,8 +8,7 @@ import { closeSheet } from "./ui/sheets.js";
 import { filters, renderResults } from "./browser.js";
 import { openDetail } from "./details.js";
 import { renderCardio, renderCardioResults } from "./cardio.js";
-// TEMP: this moves out of app.js in a later step
-import { renderWorkout } from "./app.js";
+import { renderWorkout } from "./workout.js";
 
 export async function deleteCustomExercise(ex) {
   const ok = await confirmDialog(`Delete "${ex.name}"?`, "It will also be removed from any workouts.", "Delete");

@@ -7,8 +7,7 @@ import { showToast } from "./ui/toast.js";
 import { openSheet } from "./ui/sheets.js";
 import { enableSwipe, SWIPE_THRESHOLD, hintAdd } from "./ui/swipe.js";
 import { openDetail } from "./details.js";
-// TEMP: this moves out of app.js in a later step
-import { thumbHtml } from "./app.js";
+import { thumbHtml } from "./workout.js";
 
 export const filters = { search: "", muscle: "", equipment: "" };
 let resultsShown; // how many results are drawn; set in setupBrowserEvents()
