@@ -18,6 +18,7 @@ import {
 import { showToast } from "./ui/toast.js";
 import { enableSwipe, SWIPE_THRESHOLD, hintCrossOff, hintAdd } from "./ui/swipe.js";
 import { openSheet, closeSheet, setupSheets } from "./ui/sheets.js";
+import { showForm, confirmDialog } from "./ui/forms.js";
 
 store.state = loadState();
 
@@ -1621,79 +1622,6 @@ $("importFile").addEventListener("change", async event => {
     redrawEverything();
   });
 });
-
-/* ============================================================
-   FORMS + CONFIRM (small pop-up questions)
-   ============================================================ */
-
-let formResolve = null;
-
-// TEMP export: closeSheet (ui/sheets.js) calls this. It moves to ui/forms.js in the next step.
-export function cancelPendingForm() {
-  if (formResolve) { formResolve(null); formResolve = null; }
-}
-
-/*
-  Shows a small form in a sheet and waits for an answer.
-  Returns the values typed in, or null if the user closes it.
-  (A "Promise" is how JavaScript waits for something to happen later.)
-*/
-function showForm({ title, fields = [], submitLabel = "Save", musclePicker = false, message = "", danger = false }) {
-  $("formTitle").textContent = title;
-  const form = $("form");
-
-  form.innerHTML = `
-    ${message ? `<p class="muted" style="margin:0">${escapeHtml(message)}</p>` : ""}
-    ${fields.map(f => `
-      <label class="field-label" for="field-${f.name}">${escapeHtml(f.label)}</label>
-      <input class="text-input" id="field-${f.name}" name="${f.name}" value="${escapeHtml(f.value)}" maxlength="60" autocomplete="off" required>
-    `).join("")}
-    ${musclePicker ? `
-      <label class="field-label">Muscles worked — tap once for <b style="color:var(--accent)">primary</b>, twice for <b style="color:var(--accent-soft)">secondary</b></label>
-      <div class="chip-row wrap" id="customMuscles">
-        ${ALL_MUSCLES.map(m => `<button type="button" class="chip" data-muscle="${m}" data-level="0">${m}</button>`).join("")}
-      </div>` : ""}
-    <button type="submit" class="btn ${danger ? "danger" : "primary"} big">${escapeHtml(submitLabel)}</button>
-  `;
-
-  if (musclePicker) {
-    // Each tap cycles: off → primary → secondary → off
-    $("customMuscles").addEventListener("click", event => {
-      const chip = event.target.closest(".chip");
-      if (!chip) return;
-      const level = (Number(chip.dataset.level) + 1) % 3;
-      chip.dataset.level = level;
-      chip.classList.toggle("on", level === 1);
-      chip.classList.toggle("on-secondary", level === 2);
-    });
-  }
-
-  openSheet("formSheet");
-  const firstInput = form.querySelector("input");
-  if (firstInput) setTimeout(() => { firstInput.focus(); firstInput.select(); }, 350);
-
-  return new Promise(resolve => {
-    formResolve = resolve;
-    form.onsubmit = event => {
-      event.preventDefault();
-      const values = {};
-      fields.forEach(f => { values[f.name] = form.elements[f.name].value.trim(); });
-      if (musclePicker) {
-        const chips = [...form.querySelectorAll("#customMuscles .chip")];
-        values.primary = chips.filter(c => c.dataset.level === "1").map(c => c.dataset.muscle);
-        values.secondary = chips.filter(c => c.dataset.level === "2").map(c => c.dataset.muscle);
-      }
-      formResolve = null;
-      closeSheet("formSheet");
-      resolve(values);
-    };
-  });
-}
-
-// "Are you sure?" question. Returns true or false.
-async function confirmDialog(title, message, confirmLabel) {
-  return (await showForm({ title, message, submitLabel: confirmLabel, danger: true })) !== null;
-}
 
 /* ============================================================
    START THE APP

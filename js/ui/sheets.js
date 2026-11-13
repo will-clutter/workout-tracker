@@ -4,8 +4,7 @@
 
 import { $ } from "../store.js";
 import { hintCrossOff } from "./swipe.js";
-// TEMP: cancelPendingForm moves to ui/forms.js in the next step
-import { cancelPendingForm } from "../app.js";
+import { cancelPendingForm } from "./forms.js";
 
 export const openSheets = []; // a stack, so a sheet can open on top of another
 const sheetOpeners = {}; // which element had focus before each sheet opened, so focus can go back
