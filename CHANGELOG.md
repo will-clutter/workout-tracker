@@ -2,6 +2,13 @@
 
 What changed in Workout Logbook, newest first.
 
+## [1.5.1](https://github.com/will-clutter/workout-tracker/compare/workout-logbook-v1.5.0...workout-logbook-v1.5.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* bypass browser cache when precaching ([e8dad8a](https://github.com/will-clutter/workout-tracker/commit/e8dad8a9724bfcb9f555782fd0237a3eb1121445))
+
 ## [1.5.0](https://github.com/will-clutter/workout-tracker/compare/workout-logbook-v1.4.0...workout-logbook-v1.5.0) (2026-11-13)
 
 
