@@ -18,6 +18,7 @@ const PRECACHE = [
   "js/logic.js",
   "js/bodymap.js",
   "js/main.js",
+  "js/store.js",
   "js/app.js",
   "icons/icon.svg",
   "icons/icon-192.png",

@@ -4,119 +4,19 @@
    sections with big comment headers so it's easy to find things.
 
    The big idea:
-   1. All your data lives in one object called `state`.
-   2. Whenever something changes, we update `state`, save it,
+   1. All your data lives in one object, `store.state` (see store.js).
+   2. Whenever something changes, we update `store.state`, save it,
       and re-draw the part of the screen that changed.
    ============================================================ */
 
-/* ---------- Settings ---------- */
-const STORAGE_KEY = "workout-logbook-v1";
-// Exercise pictures are stored in the project (images/ folder), so ad blockers
-// can't block them and they load fast. thumbs = small squares, photos = bigger.
-const THUMB_DIR = "images/thumbs/";
-const PHOTO_DIR = "images/photos/";
-const RESULTS_PAGE_SIZE = 10;
-// DEFAULT_SETS and DEFAULT_REPS are in logic.js
+import {
+  STORAGE_KEY, THUMB_DIR, PHOTO_DIR, RESULTS_PAGE_SIZE,
+  store, loadState, saveState, units, activeWorkout,
+  LISTS, listForCard, isInList, getExercise,
+  $, prefersReducedMotion, ICONS
+} from "./store.js";
 
-/* ============================================================
-   DATA
-   ============================================================ */
-
-// The exercise database (filled in once data/exercises.json loads)
-let database = [];
-let databaseById = {};
-
-// Your data. This is what gets saved on your phone.
-let state = loadState();
-
-// Read saved data from the browser's storage (localStorage)
-function loadState() {
-  try {
-    return parseSavedState(localStorage.getItem(STORAGE_KEY));
-  } catch (err) {
-    return defaultState(); // storage blocked
-  }
-}
-
-function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (err) {
-    showToast("Couldn't save. Is storage full or blocked?");
-  }
-}
-
-// "imperial" or "metric" (weights and distances are always saved in lb / mi)
-function units() {
-  return state.settings.units;
-}
-
-// The workout currently on screen
-function activeWorkout() {
-  return findActiveWorkout(state);
-}
-
-/*
-  The two lists of cards: your workout, and your cardio.
-  Most of the card code (crossing off, removing, adding) works on either one,
-  and looks up what's different here.
-*/
-const LISTS = {
-  workout: {
-    name: "workout",
-    holder: () => activeWorkout(),        // the thing with .items
-    label: () => activeWorkout().name,     // "Add to ___"
-    container: "cards",
-    sheet: "browserSheet",
-    newItem: ex => newItem(ex),
-    summary: item => summaryHtml(item),
-    render: () => renderWorkout(),
-    renderPicker: () => renderResults(),
-    done: "Workout complete"
-  },
-  cardio: {
-    name: "cardio",
-    holder: () => state.cardio,
-    label: () => "Cardio",
-    container: "cardioCards",
-    sheet: "cardioSheet",
-    newItem: ex => newCardioItem(ex),
-    summary: item => cardioSummaryHtml(item),
-    render: () => renderCardio(),
-    renderPicker: () => renderCardioResults(),
-    done: "Cardio complete"
-  }
-};
-
-// Which list a card on screen is in
-function listForCard(card) {
-  return card.closest("#cardioCards") ? LISTS.cardio : LISTS.workout;
-}
-
-function isInList(list, exId) {
-  return hasExercise(list.holder(), exId);
-}
-
-// Look up an exercise by id, in the database or your custom ones
-function getExercise(exId) {
-  return findExercise(exId, databaseById, state.customExercises);
-}
-
-// makeId, defaultState, newItem, plural, escapeHtml and capitalize are in logic.js
-
-// Shortcut for document.getElementById
-const $ = id => document.getElementById(id);
-
-// Has the phone/computer asked for less animation? (an accessibility setting)
-const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-// Small SVG icons (Font Awesome Free) used inside the app's HTML
-const ICONS = {
-  note: `<svg class="icon inline" viewBox="0 0 448 512" role="img" aria-label="Has notes"><path d="M64 480c-35.3 0-64-28.7-64-64L0 96C0 60.7 28.7 32 64 32l320 0c35.3 0 64 28.7 64 64l0 213.5c0 17-6.7 33.3-18.7 45.3L322.7 461.3c-12 12-28.3 18.7-45.3 18.7L64 480zM389.5 304L296 304c-13.3 0-24 10.7-24 24l0 93.5 117.5-117.5z"/></svg>`,
-  grip: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>`,
-  reorder: `<svg class="icon outline" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20V4M3 8l4-4 4 4"/><path d="M17 4v16M13 16l4 4 4-4"/></svg>`,
-  trash: `<svg class="icon" viewBox="0 0 448 512" aria-hidden="true"><path d="M136.7 5.9L128 32 32 32C14.3 32 0 46.3 0 64S14.3 96 32 96l384 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0-8.7-26.1C306.9-7.2 294.7-16 280.9-16L167.1-16c-13.8 0-26 8.8-30.4 21.9zM416 144L32 144 53.1 467.1C54.7 492.4 75.7 512 101 512L347 512c25.3 0 46.3-19.6 47.9-44.9L416 144z"/></svg>`
-};
+store.state = loadState();
 
 /* ============================================================
    WORKOUT TAB
@@ -132,7 +32,7 @@ function syncReorderUi() {
   $("reorderBtn").setAttribute("aria-pressed", String(reorderMode));
 }
 
-function renderWorkout() {
+export function renderWorkout() {
   const workout = activeWorkout();
   $("workoutName").textContent = workout.name;
   $("switcherName").textContent = workout.name;
@@ -171,7 +71,7 @@ function fillCardLists(items, buildCard, ids) {
 function applyCollapsed() {
   document.querySelectorAll(".collapse-toggle").forEach(button => {
     endFold($(button.dataset.list)); // a redraw (or finished fold) leaves no animation half-done
-    const collapsed = Boolean(state.collapsed?.[button.dataset.key]);
+    const collapsed = Boolean(store.state.collapsed?.[button.dataset.key]);
     button.setAttribute("aria-expanded", String(!collapsed));
     $(button.dataset.list).classList.toggle("collapsed", collapsed);
   });
@@ -190,22 +90,22 @@ document.querySelectorAll(".fab").forEach(fab => {
 // Tapping again mid-flight just reverses it from the current frame, so rapid taps never jump.
 document.querySelectorAll(".collapse-toggle").forEach(button => {
   button.addEventListener("click", () => {
-    state.collapsed = cleanCollapsed(state.collapsed);
+    store.state.collapsed = cleanCollapsed(store.state.collapsed);
     const key = button.dataset.key;
-    state.collapsed[key] = !state.collapsed[key];
+    store.state.collapsed[key] = !store.state.collapsed[key];
     saveState();
-    button.setAttribute("aria-expanded", String(!state.collapsed[key]));
+    button.setAttribute("aria-expanded", String(!store.state.collapsed[key]));
     const list = $(button.dataset.list);
     if (list._fold) return list._fold.forEach(a => a.reverse()); // changed its mind mid-animation
 
     const cards = [...list.querySelectorAll(".card")];
     if (prefersReducedMotion() || !cards.length) return applyCollapsed();
-    if (!state.collapsed[key]) { // opening: show the list, then run the fold backwards from the pile
+    if (!store.state.collapsed[key]) { // opening: show the list, then run the fold backwards from the pile
       list.classList.remove("collapsed");
       cards.forEach(card => card.classList.add("settled")); // no fade-in of their own
     }
     list._fold = buildFold(list, cards);
-    list._fold.forEach(a => { if (state.collapsed[key]) a.play(); else { a.currentTime = FOLD_MS; a.reverse(); } });
+    list._fold.forEach(a => { if (store.state.collapsed[key]) a.play(); else { a.currentTime = FOLD_MS; a.reverse(); } });
   });
 });
 
@@ -409,7 +309,7 @@ function thumbHtml(ex, size = "") {
 }
 
 // "3 sets · 10 reps · 60 lb"
-function summaryHtml(item) {
+export function summaryHtml(item) {
   const parts = [`<b>${escapeHtml(item.sets || "–")}</b> sets`, `<b>${escapeHtml(item.reps || "–")}</b> reps`];
   if (item.weight) parts.push(`<b>${escapeHtml(showWeight(item.weight, units()))}</b> ${unitLabels(units()).weight}`);
   return parts.join(" · ") + (item.notes ? ` · ${ICONS.note}` : "");
@@ -644,7 +544,7 @@ $("reorderBtn").addEventListener("click", () => {
 
 // Uncross anything crossed off on an earlier day. Returns true if anything changed.
 function clearOldCrossOffs() {
-  const changed = clearCrossOffsFromOtherDays([...state.workouts, state.cardio]);
+  const changed = clearCrossOffsFromOtherDays([...store.state.workouts, store.state.cardio]);
   if (changed) saveState();
   return changed;
 }
@@ -699,8 +599,8 @@ $("renameBtn").addEventListener("click", () => renameWorkout(activeWorkout()));
    Anything left empty isn't shown on the card or in History.
    ============================================================ */
 
-function renderCardio() {
-  const items = state.cardio.items;
+export function renderCardio() {
+  const items = store.state.cardio.items;
   fillCardLists(items, buildCardioCard, {
     todo: "cardioList", done: "cardioCompletedList", todoLabel: "cardioLabel", doneHead: "cardioCompletedHead"
   });
@@ -711,11 +611,11 @@ function renderCardio() {
 }
 
 // "1h 30m · High intensity · 145 bpm" with the numbers (or the intensity) in bold. Empty if nothing's filled in.
-function cardioSummaryHtml(item) {
+export function cardioSummaryHtml(item) {
   const bold = part => /\d/.test(part)
     ? part.replace(/(\d[\d.,:]*)/g, "<b>$1</b>")
     : part.replace(/^(\S+)/, "<b>$1</b>");
-  const parts = cardioSummaryParts(item, state.settings).map(part => bold(escapeHtml(part)));
+  const parts = cardioSummaryParts(item, store.state.settings).map(part => bold(escapeHtml(part)));
   if (item.notes) parts.push(ICONS.note);
   return parts.join(" · ");
 }
@@ -789,7 +689,7 @@ function buildCardioCard(item) {
 }
 
 function logCardio() {
-  state.history.unshift(buildCardioHistoryEntry(state.cardio.items, exId => getExercise(exId)?.name));
+  store.state.history.unshift(buildCardioHistoryEntry(store.state.cardio.items, exId => getExercise(exId)?.name));
   saveState();
   renderHistory();
 }
@@ -806,9 +706,9 @@ $("addCardioBtn").addEventListener("click", () => {
   renderCardioResults();
 });
 
-function renderCardioResults() {
-  const options = [...state.customExercises, ...database].filter(isCardio);
-  const added = new Set(state.cardio.items.map(i => i.exId));
+export function renderCardioResults() {
+  const options = [...store.state.customExercises, ...store.database].filter(isCardio);
+  const added = new Set(store.state.cardio.items.map(i => i.exId));
   $("cardioResults").innerHTML = options.map(ex => resultRowHtml(ex, added.has(ex.id))).join("");
   hintAdd();
 }
@@ -835,7 +735,7 @@ $("customCardioBtn").addEventListener("click", async () => {
     category: "cardio",
     custom: true
   };
-  state.customExercises.push(ex);
+  store.state.customExercises.push(ex);
   saveState();
   renderCardioResults();
   openDetail(ex.id, { target: "cardio" });
@@ -848,7 +748,7 @@ $("customCardioBtn").addEventListener("click", async () => {
 // Save a copy ("snapshot") of the workout as it is right now,
 // including which exercises were crossed off
 function logSession(workout) {
-  state.history.unshift(buildHistoryEntry(workout, exId => getExercise(exId)?.name));
+  store.state.history.unshift(buildHistoryEntry(workout, exId => getExercise(exId)?.name));
   saveState();
   renderHistory();
 }
@@ -879,7 +779,7 @@ $("historyToggle").addEventListener("click", event => {
 function historyLineHtml(item, isCardio, words = []) {
   const name = `<b>${highlightText(item.name, words)}</b>`;
   if (isCardio) {
-    const parts = cardioSummaryParts(item, state.settings);
+    const parts = cardioSummaryParts(item, store.state.settings);
     return `${name}${parts.length ? ` — ${escapeHtml(parts.join(" · "))}` : ""}`;
   }
   return `${name} — ${escapeHtml(item.sets || "?")} × ${escapeHtml(item.reps || "?")}${item.weight ? ` @ ${escapeHtml(showWeight(item.weight, units()))} ${unitLabels(units()).weight}` : ""}`;
@@ -975,7 +875,7 @@ function toggleGroup(key) {
 
 function renderHistory() {
   const showCardio = historyView === "cardio";
-  const all = sortSessionsNewestFirst(state.history.filter(s => isCardioSession(s) === showCardio));
+  const all = sortSessionsNewestFirst(store.state.history.filter(s => isCardioSession(s) === showCardio));
   const words = searchWords(historyQuery);
   const searching = words.length > 0;
   historyNodes = new Map();
@@ -1020,13 +920,13 @@ $("historyMore").addEventListener("click", () => {
 
 // Delete a session right away; the toast's Undo puts it back where it was
 function deleteSession(id) {
-  const index = state.history.findIndex(s => s.id === id);
+  const index = store.state.history.findIndex(s => s.id === id);
   if (index < 0) return;
-  const [session] = state.history.splice(index, 1);
+  const [session] = store.state.history.splice(index, 1);
   saveState();
   renderHistory();
   showToast("Deleted session", "Undo", () => {
-    state.history.splice(Math.min(index, state.history.length), 0, session);
+    store.state.history.splice(Math.min(index, store.state.history.length), 0, session);
     saveState();
     renderHistory();
   });
@@ -1365,21 +1265,21 @@ function enableSwipe(list, rowSelector, direction, threshold, onSwipe) {
 /* ---------- First-time swipe hints ----------
    The first time a swipeable row is on screen, it slides partway open by
    itself and back, to show it can be swiped. Each hint plays once, ever
-   (remembered in state.hintsSeen). */
+   (remembered in store.state.hintsSeen). */
 
 const hintWaiting = {};
 
 // findRow() returns the row to animate, or nothing if it isn't on screen right now.
 // It's checked again just before playing, in case the list was redrawn meanwhile.
 function showHintOnce(name, findRow, direction) {
-  state.hintsSeen ??= {};
-  if (state.hintsSeen[name] || hintWaiting[name] || prefersReducedMotion() || !findRow()) return;
+  store.state.hintsSeen ??= {};
+  if (store.state.hintsSeen[name] || hintWaiting[name] || prefersReducedMotion() || !findRow()) return;
   hintWaiting[name] = true;
   setTimeout(() => {
     hintWaiting[name] = false;
     const row = findRow();
     if (!row) return; // gone now; try again next time
-    state.hintsSeen[name] = true;
+    store.state.hintsSeen[name] = true;
     saveState();
 
     const set = px => {
@@ -1435,7 +1335,7 @@ function setupBrowser() {
   ).join("");
 
   // Equipment dropdown, built from whatever the database contains
-  const equipment = [...new Set(database.filter(e => !isCardio(e)).map(e => e.equipment).filter(Boolean))].sort();
+  const equipment = [...new Set(store.database.filter(e => !isCardio(e)).map(e => e.equipment).filter(Boolean))].sort();
   $("equipmentSelect").innerHTML += equipment.map(e => `<option value="${e}">${e}</option>`).join("");
 }
 
@@ -1474,10 +1374,10 @@ function matchesFilters(ex, words) {
   return exerciseMatches(ex, filters, words);
 }
 
-function renderResults() {
+export function renderResults() {
   const words = filters.search ? filters.search.split(/\s+/) : []; // split once, not once per exercise
   // Cardio lives in the Cardio tab, so it's left out of this search
-  const pool = [...state.customExercises, ...database].filter(ex => !isCardio(ex));
+  const pool = [...store.state.customExercises, ...store.database].filter(ex => !isCardio(ex));
   const matches = pool.filter(ex => matchesFilters(ex, words));
   const inWorkout = new Set(activeWorkout().items.map(i => i.exId));
 
@@ -1686,7 +1586,7 @@ $("customBtn").addEventListener("click", async () => {
     secondaryMuscles: result.secondary,
     custom: true
   };
-  state.customExercises.push(ex);
+  store.state.customExercises.push(ex);
   saveState();
   renderResults();
   openDetail(ex.id);
@@ -1695,8 +1595,8 @@ $("customBtn").addEventListener("click", async () => {
 async function deleteCustomExercise(ex) {
   const ok = await confirmDialog(`Delete "${ex.name}"?`, "It will also be removed from any workouts.", "Delete");
   if (!ok) return;
-  state.customExercises = state.customExercises.filter(e => e.id !== ex.id);
-  [...state.workouts, state.cardio].forEach(w => { w.items = w.items.filter(i => i.exId !== ex.id); });
+  store.state.customExercises = store.state.customExercises.filter(e => e.id !== ex.id);
+  [...store.state.workouts, store.state.cardio].forEach(w => { w.items = w.items.filter(i => i.exId !== ex.id); });
   saveState();
   closeSheet("detailSheet");
   renderResults();
@@ -1715,8 +1615,8 @@ $("workoutSwitcher").addEventListener("click", () => {
 });
 
 function renderWorkoutsList() {
-  $("workoutsList").innerHTML = state.workouts.map(w => `
-    <li class="${w.id === state.activeWorkoutId ? "current" : ""}" data-id="${w.id}">
+  $("workoutsList").innerHTML = store.state.workouts.map(w => `
+    <li class="${w.id === store.state.activeWorkoutId ? "current" : ""}" data-id="${w.id}">
       <button class="pick" data-action="pick">
         ${escapeHtml(w.name)}
         <small>${plural(w.items.length, "exercise")}</small>
@@ -1729,10 +1629,10 @@ function renderWorkoutsList() {
 $("workoutsList").addEventListener("click", async event => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
-  const workout = state.workouts.find(w => w.id === button.closest("li").dataset.id);
+  const workout = store.state.workouts.find(w => w.id === button.closest("li").dataset.id);
 
   if (button.dataset.action === "pick") {
-    state.activeWorkoutId = workout.id;
+    store.state.activeWorkoutId = workout.id;
     saveState();
     renderWorkout();
     closeSheet("workoutsSheet");
@@ -1742,11 +1642,11 @@ $("workoutsList").addEventListener("click", async event => {
     renderWorkoutsList();
   }
   if (button.dataset.action === "delete") {
-    if (state.workouts.length === 1) return showToast("You need at least one workout");
+    if (store.state.workouts.length === 1) return showToast("You need at least one workout");
     const ok = await confirmDialog(`Delete "${workout.name}"?`, "Your logged history stays.", "Delete");
     if (!ok) return;
-    state.workouts = state.workouts.filter(w => w.id !== workout.id);
-    if (state.activeWorkoutId === workout.id) state.activeWorkoutId = state.workouts[0].id;
+    store.state.workouts = store.state.workouts.filter(w => w.id !== workout.id);
+    if (store.state.activeWorkoutId === workout.id) store.state.activeWorkoutId = store.state.workouts[0].id;
     saveState();
     renderWorkout();
     renderWorkoutsList();
@@ -1761,8 +1661,8 @@ $("newWorkoutBtn").addEventListener("click", async () => {
   });
   if (!result || !result.name) return;
   const workout = { id: makeId(), name: result.name, items: [] };
-  state.workouts.push(workout);
-  state.activeWorkoutId = workout.id;
+  store.state.workouts.push(workout);
+  store.state.activeWorkoutId = workout.id;
   saveState();
   renderWorkout();
   closeSheet("workoutsSheet");
@@ -1808,7 +1708,7 @@ function renderThemeSwatches() {
 // Units and duration display: two-choice switches that reuse the History toggle's sliding pill
 function renderSettingPicks() {
   document.querySelectorAll("#settingsSheet .segmented").forEach(group => {
-    const current = state.settings[group.dataset.setting];
+    const current = store.state.settings[group.dataset.setting];
     const buttons = [...group.querySelectorAll(".seg")];
     group.dataset.pick = buttons.findIndex(b => b.dataset.value === current);
     buttons.forEach(b => {
@@ -1827,7 +1727,7 @@ $("settingsBtn").addEventListener("click", () => {
 });
 
 function chooseSetting(group, button) {
-  state.settings[group.dataset.setting] = button.dataset.value;
+  store.state.settings[group.dataset.setting] = button.dataset.value;
   saveState();
   renderSettingPicks();
   renderWorkout();
@@ -1854,9 +1754,9 @@ document.querySelectorAll("#settingsSheet .segmented").forEach(group => {
 $("themeSwatches").addEventListener("click", event => {
   const swatch = event.target.closest(".swatch");
   if (!swatch) return;
-  state.theme = swatch.dataset.themeId;
+  store.state.theme = swatch.dataset.themeId;
   saveState();
-  applyTheme(state.theme);
+  applyTheme(store.state.theme);
   renderThemeSwatches();
 });
 
@@ -1869,11 +1769,11 @@ const PREIMPORT_KEY = STORAGE_KEY + "-preimport"; // safety copy of what was her
 
 // Swap in new data. Everything else (saving, redrawing) is up to the caller.
 function replaceState(newState) {
-  state = newState;
+  store.state = newState;
 }
 
 function redrawEverything() {
-  applyTheme(state.theme);
+  applyTheme(store.state.theme);
   renderWorkout();
   renderCardio();
   renderHistory();
@@ -1882,7 +1782,7 @@ function redrawEverything() {
 }
 
 $("exportBtn").addEventListener("click", () => {
-  const text = JSON.stringify(buildExport(state), null, 2);
+  const text = JSON.stringify(buildExport(store.state), null, 2);
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
   link.download = exportFileName();
@@ -1908,7 +1808,7 @@ $("importFile").addEventListener("change", async event => {
   const ok = await confirmDialog("Replace all your data?", `${summary} from this file will replace everything on this device.`, "Replace");
   if (!ok) return;
 
-  const before = state;
+  const before = store.state;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw !== null) localStorage.setItem(PREIMPORT_KEY, raw);
@@ -1998,7 +1898,7 @@ async function confirmDialog(title, message, confirmLabel) {
    ============================================================ */
 
 let toastTimer;
-function showToast(message, actionLabel, onAction) {
+export function showToast(message, actionLabel, onAction) {
   const toast = $("toast");
   toast.innerHTML = escapeHtml(message);
   toast.style.pointerEvents = actionLabel ? "auto" : "none"; // only clickable when it has a button
@@ -2027,8 +1927,8 @@ async function start() {
   renderHistory();
   try {
     const response = await fetch("data/exercises.json");
-    database = await response.json();
-    database.forEach(ex => { databaseById[ex.id] = ex; });
+    store.database = await response.json();
+    store.database.forEach(ex => { store.databaseById[ex.id] = ex; });
     setupBrowser();
     renderWorkout(); // re-draw now that exercise names/muscles are known
     renderCardio();
