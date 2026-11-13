@@ -15,4 +15,5 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v4
         with:
-          release-type: node # This tells the bot to maintain a standard CHANGELOG.md file
+          config-file: release-please-config.json # maintains CHANGELOG.md and bumps sw.js
+          manifest-file: .release-please-manifest.json
