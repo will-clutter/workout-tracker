@@ -81,7 +81,20 @@ The app is designed to be easy on the eyes and usable without a mouse or touch g
 |---|---|
 | `index.html` | The page layout |
 | `css/style.css` | Colors, spacing, animations. Theme colors are at the top. |
-| `js/app.js` | The app's behavior and screen rendering |
+| `js/main.js` | Where the app starts: loads your data, switches on each part, starts it |
+| `js/store.js` | Shared data (`store.state`, the exercise list) and small helpers |
+| `js/workout.js` | The Workout tab: cards, crossing off, folding the lists |
+| `js/cardio.js` | The Cardio tab |
+| `js/history.js` | Logging sessions and the History tab (groups, search, delete) |
+| `js/browser.js` | The Add exercise search and filters |
+| `js/details.js` | The "more info" screen (body map, photos, steps) |
+| `js/custom-exercises.js` | Creating and deleting your own exercises |
+| `js/workouts.js` | Switching, creating, renaming and deleting workouts |
+| `js/reorder.js` | Dragging cards into your own order |
+| `js/tabs.js` | The tab bar and its moving circle |
+| `js/themes.js` | Color themes and the Settings sheet |
+| `js/backup.js` | Export and import your data as a file |
+| `js/ui/` | Shared pieces: `sheets.js` (slide-up panels), `forms.js` (pop-up questions), `toast.js` (bottom messages), `swipe.js` (swipe gesture and first-time hints) |
 | `js/logic.js` | Pure logic (data cleaning, search, formatting) covered by the tests |
 | `js/bodymap.js` | Draws the front/back body diagram |
 | `data/exercises.json` | The exercise database |

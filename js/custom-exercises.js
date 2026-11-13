@@ -23,7 +23,7 @@ export async function deleteCustomExercise(ex) {
   renderCardio();
 }
 
-// Wires up the "Create your own exercise" button. Called once from app.js when the app starts.
+// Wires up the "Create your own exercise" button. Called once from main.js when the app starts.
 export function setupCustomExercises() {
   $("customBtn").addEventListener("click", async () => {
     const result = await showForm({

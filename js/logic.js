@@ -1,7 +1,7 @@
 /* ============================================================
    logic.js — small helpers with no screen code
    These live in their own file so they can be tested
-   (see tests/). The browser loads this before app.js.
+   (see tests/). The browser loads this before main.js.
    ============================================================ */
 
 const DEFAULT_SETS = "3";

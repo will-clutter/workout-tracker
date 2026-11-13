@@ -127,7 +127,7 @@ function enableReorder(listEl) {
   });
 }
 
-// Turns on drag and keyboard reordering for the Workout list. Called once from app.js when the app starts.
+// Turns on drag and keyboard reordering for the Workout list. Called once from main.js when the app starts.
 export function setupReorder() {
   enableReorder($("exerciseList"));
 }

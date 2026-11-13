@@ -119,7 +119,7 @@ export function renderCardioResults() {
   hintAdd();
 }
 
-// Wires up the Cardio tab and its picker. Called once from app.js when the app starts.
+// Wires up the Cardio tab and its picker. Called once from main.js when the app starts.
 export function setupCardio() {
   $("logCardioBtn").addEventListener("click", () => {
     logCardio();

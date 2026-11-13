@@ -161,7 +161,7 @@ function deleteSession(id) {
   });
 }
 
-// Wires up the Log button and the History tab. Called once from app.js when the app starts.
+// Wires up the Log button and the History tab. Called once from main.js when the app starts.
 export function setupHistory() {
   $("logBtn").addEventListener("click", () => {
     const workout = activeWorkout();

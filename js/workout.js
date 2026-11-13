@@ -381,7 +381,7 @@ export function legendHtml() {
   </div>`;
 }
 
-// Wires up the Workout tab (and the card behaviour shared with Cardio). Called once from app.js when the app starts.
+// Wires up the Workout tab (and the card behaviour shared with Cardio). Called once from main.js when the app starts.
 export function setupWorkout() {
   // The floating Add buttons grow to show their label while pressed (phones have no hover).
   // Letting go still ends in a normal click, which opens the picker.

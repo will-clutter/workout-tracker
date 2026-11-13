@@ -32,7 +32,7 @@ export async function renameWorkout(workout) {
   renderWorkout();
 }
 
-// Wires up the workout switcher sheet. Called once from app.js when the app starts.
+// Wires up the workout switcher sheet. Called once from main.js when the app starts.
 export function setupWorkouts() {
   $("workoutSwitcher").addEventListener("click", () => {
     renderWorkoutsList();

@@ -137,7 +137,7 @@ function moveTabIndicator(button, animate, duration = 700, slide = false) {
   ], { duration });
 }
 
-// Wires up the tab bar. Called once from app.js when the app starts.
+// Wires up the tab bar. Called once from main.js when the app starts.
 export function setupTabs() {
   tabBar = document.querySelector(".tabbar");
   tabButtons = [...document.querySelectorAll(".tab-btn")];

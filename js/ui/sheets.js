@@ -64,7 +64,7 @@ function autoHideHeader(sheet) {
   }, { passive: true });
 }
 
-// Wires up all the sheets. Called once from app.js when the app starts.
+// Wires up all the sheets. Called once from main.js when the app starts.
 export function setupSheets() {
   // Screen readers: each sheet is a modal dialog, and can take focus itself when it opens
   document.querySelectorAll(".sheet").forEach(sheet => {

@@ -52,7 +52,7 @@ function chooseSetting(group, button) {
   renderHistory();
 }
 
-// Wires up the Settings sheet. Called once from app.js when the app starts.
+// Wires up the Settings sheet. Called once from main.js when the app starts.
 export function setupThemes() {
   $("settingsBtn").addEventListener("click", () => {
     renderThemeSwatches();

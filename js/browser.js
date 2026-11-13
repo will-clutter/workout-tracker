@@ -101,7 +101,7 @@ function enableSwipeToAdd(resultsList, list) {
   });
 }
 
-// Wires up the Add exercise sheet (search, filters, results). Called once from app.js when the app starts.
+// Wires up the Add exercise sheet (search, filters, results). Called once from main.js when the app starts.
 export function setupBrowserEvents() {
   resultsShown = RESULTS_PAGE_SIZE;
 
