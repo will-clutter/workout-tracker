@@ -29,7 +29,11 @@ const PRECACHE = [
 
 if (typeof self !== "undefined" && self.addEventListener) {
   self.addEventListener("install", event => {
-    event.waitUntil(caches.open(SHELL_CACHE).then(cache => cache.addAll(PRECACHE)));
+    // cache: "reload" skips the browser's own HTTP cache, so a stale copy of a file
+    // (GitHub Pages lets browsers reuse files for ~10 minutes) can't get saved into this version's cache.
+    event.waitUntil(caches.open(SHELL_CACHE).then(cache =>
+      cache.addAll(PRECACHE.map(url => new Request(url, { cache: "reload" })))
+    ));
     // No skipWaiting(): a new version takes over on the next launch.
   });
 
