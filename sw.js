@@ -23,6 +23,7 @@ const PRECACHE = [
   "js/ui/swipe.js",
   "js/ui/sheets.js",
   "js/ui/forms.js",
+  "js/themes.js",
   "js/app.js",
   "icons/icon.svg",
   "icons/icon-192.png",
