@@ -5,7 +5,7 @@
      are viewed (about 27 MB of photos, too much to download up front).
    - All paths are relative because the site lives under /workout-tracker/. */
 
-const VERSION = "1.4.0"; // x-release-please-version
+const VERSION = "1.5.0"; // x-release-please-version
 const SHELL_CACHE = "workout-tracker-v" + VERSION;
 const IMAGE_CACHE = "workout-tracker-images"; // unversioned: images survive releases
 const LAZY_CACHE = "workout-tracker-lazy-v" + VERSION;
