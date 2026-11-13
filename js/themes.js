@@ -8,8 +8,9 @@
 import { $, store, saveState } from "./store.js";
 import { openSheet } from "./ui/sheets.js";
 import { renderHistory } from "./history.js";
+import { renderCardio } from "./cardio.js";
 // TEMP: these move out of app.js in later steps
-import { renderWorkout, renderCardio } from "./app.js";
+import { renderWorkout } from "./app.js";
 
 const THEMES = [
   { id: "crimson", name: "Crimson" },

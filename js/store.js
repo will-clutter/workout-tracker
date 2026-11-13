@@ -6,7 +6,8 @@
 
 import { showToast } from "./ui/toast.js";
 // TEMP: these still live in app.js until their own files exist
-import { summaryHtml, renderWorkout, cardioSummaryHtml, renderCardio, renderCardioResults, renderResults } from "./app.js";
+import { summaryHtml, renderWorkout, renderResults } from "./app.js";
+import { cardioSummaryHtml, renderCardio, renderCardioResults } from "./cardio.js";
 
 export const STORAGE_KEY = "workout-logbook-v1";
 // Exercise pictures are stored in the project (images/ folder), so ad blockers

@@ -22,6 +22,7 @@ import { showForm, confirmDialog } from "./ui/forms.js";
 import { renderThemeSwatches, renderSettingPicks, setupThemes } from "./themes.js";
 import { setupTabs } from "./tabs.js";
 import { logSession, renderHistory, setupHistory } from "./history.js";
+import { renderCardio, cardioSummaryHtml, renderCardioResults, logCardio, setupCardio } from "./cardio.js";
 
 store.state = loadState();
 
@@ -64,7 +65,7 @@ export function renderWorkout() {
 
 // Still to do (in your order) on top; crossed off below, in the order you finished them.
 // ids = the two lists, and the headings above them (hidden when their list is empty).
-function fillCardLists(items, buildCard, ids) {
+export function fillCardLists(items, buildCard, ids) {
   const todo = items.filter(i => !i.doneAt);
   const done = items.filter(i => i.doneAt).sort((a, b) => a.doneAt - b.doneAt);
   $(ids.todo).replaceChildren(...todo.map(buildCard));
@@ -303,11 +304,11 @@ function enableReorder(listEl) {
 enableReorder($("exerciseList"));
 
 // Which cards are expanded (open for editing). Not saved; resets on reload.
-const openCards = new Set();
+export const openCards = new Set();
 
 // Small square picture for an exercise. Uses its first photo, or the
 // first letter of its name if it has no photos (like custom exercises).
-function thumbHtml(ex, size = "") {
+export function thumbHtml(ex, size = "") {
   const letter = escapeHtml((ex?.name || "?").charAt(0).toUpperCase());
   const inner = ex?.photos
     ? `<img src="${THUMB_DIR + encodeURIComponent(ex.id)}.webp" alt="" loading="lazy" onerror="this.parentElement.textContent='${letter}'">`
@@ -323,7 +324,7 @@ export function summaryHtml(item) {
 }
 
 // The tap version of the cross-off swipe, for anyone who can't (or would rather not) swipe
-function doneButtonHtml(item) {
+export function doneButtonHtml(item) {
   return item.doneAt
     ? `<button class="btn small done-btn" data-action="done">Mark not done</button>`
     : `<button class="btn small primary done-btn" data-action="done">✓ Mark done</button>`;
@@ -596,154 +597,7 @@ function legendHtml() {
 
 $("renameBtn").addEventListener("click", () => renameWorkout(activeWorkout()));
 
-/* ============================================================
-   CARDIO TAB
-   One list (no switcher). Works like the Workout tab, but each card
-   has duration, intensity, heart rate, calories, distance and notes.
-   Anything left empty isn't shown on the card or in History.
-   ============================================================ */
-
-export function renderCardio() {
-  const items = store.state.cardio.items;
-  fillCardLists(items, buildCardioCard, {
-    todo: "cardioList", done: "cardioCompletedList", todoLabel: "cardioLabel", doneHead: "cardioCompletedHead"
-  });
-  const empty = items.length === 0;
-  $("cardioEmpty").classList.toggle("hidden", !empty);
-  $("logCardioBtn").classList.toggle("hidden", empty);
-  hintCrossOff();
-}
-
-// "1h 30m · High intensity · 145 bpm" with the numbers (or the intensity) in bold. Empty if nothing's filled in.
-export function cardioSummaryHtml(item) {
-  const bold = part => /\d/.test(part)
-    ? part.replace(/(\d[\d.,:]*)/g, "<b>$1</b>")
-    : part.replace(/^(\S+)/, "<b>$1</b>");
-  const parts = cardioSummaryParts(item, store.state.settings).map(part => bold(escapeHtml(part)));
-  if (item.notes) parts.push(ICONS.note);
-  return parts.join(" · ");
-}
-
-// One number box on a cardio card
-function cardioStatHtml(label, field, value, unit, inputmode = "decimal") {
-  return `<div class="stat">
-    <label>${label}</label>
-    <div class="weight-wrap">
-      <input type="text" inputmode="${inputmode}" autocomplete="off" placeholder="—" data-field="${field}" value="${escapeHtml(value)}">
-      <span class="unit">${unit}</span>
-    </div>
-  </div>`;
-}
-
-// The Duration box: hours : minutes : seconds. Any of them can be left blank.
-function durationStatHtml(durationSec) {
-  const parts = splitDuration(durationSec);
-  const box = (key, unit) => `<div class="dur-part">
-      <input type="text" inputmode="numeric" autocomplete="off" placeholder="0" data-dur="${key}" value="${parts[key]}" aria-label="${unit}">
-      <span class="unit">${unit}</span>
-    </div>`;
-  return `<div class="stat duration-stat">
-    <label>Duration</label>
-    <div class="dur-wrap">
-      ${box("h", "hr")}<span class="dur-sep">:</span>${box("m", "min")}<span class="dur-sep">:</span>${box("s", "sec")}
-    </div>
-  </div>`;
-}
-
-// One cardio card
-function buildCardioCard(item) {
-  const exercise = getExercise(item.exId);
-  const name = exercise ? exercise.name : "Unknown exercise";
-  const isOpen = openCards.has(item.uid);
-  const hasMuscles = exercise && (exercise.primaryMuscles.length || exercise.secondaryMuscles.length);
-
-  const li = document.createElement("li");
-  li.className = "card glass swipe " + (item.doneAt ? "done swipe-undo" : "swipe-done") + (isOpen ? " open" : "");
-  li.dataset.uid = item.uid;
-  li.innerHTML = `
-    <button class="row" data-action="toggle" aria-expanded="${isOpen}">
-      ${thumbHtml(exercise)}
-      <span class="row-text">
-        <div class="row-name"><span>${escapeHtml(name)}</span></div>
-        <div class="row-summary">${cardioSummaryHtml(item)}</div>
-      </span>
-      ${hasMuscles ? `<span class="mini-map">${renderMiniMap(exercise.primaryMuscles, exercise.secondaryMuscles)}</span>` : ""}
-    </button>
-
-    <div class="editor"><div class="editor-inner"><div class="editor-content">
-      <div class="stats cardio-stats">
-        ${durationStatHtml(item.durationSec)}
-        ${cardioStatHtml("Heart rate", "heartRate", item.heartRate, "bpm", "numeric")}
-        ${cardioStatHtml("Calories", "calories", item.calories, "cal", "numeric")}
-        ${cardioStatHtml("Distance", "distance", showDistance(item.distance, units()), unitLabels(units()).distance)}
-      </div>
-      <div class="intensity">
-        <span class="intensity-label">Intensity</span>
-        ${INTENSITIES.map(level => `<button type="button" class="chip ${item.intensity === level ? "on" : ""}" data-action="intensity" data-level="${level}" aria-pressed="${item.intensity === level}">${level}</button>`).join("")}
-      </div>
-      <textarea class="notes" data-field="notes" placeholder="Notes (e.g. intervals, incline 8)">${escapeHtml(item.notes)}</textarea>
-      ${doneButtonHtml(item)}
-      <div class="editor-actions">
-        <button class="btn small" data-action="info">ⓘ More info</button>
-        <button class="btn small danger" data-action="remove">Remove</button>
-      </div>
-    </div></div></div>
-  `;
-  return li;
-}
-
-function logCardio() {
-  store.state.history.unshift(buildCardioHistoryEntry(store.state.cardio.items, exId => getExercise(exId)?.name));
-  saveState();
-  renderHistory();
-}
-
-$("logCardioBtn").addEventListener("click", () => {
-  logCardio();
-  showToast("Logged cardio");
-});
-
-/* ---------- Picking cardio: the cardio exercises + your own ---------- */
-
-$("addCardioBtn").addEventListener("click", () => {
-  openSheet("cardioSheet");
-  renderCardioResults();
-});
-
-export function renderCardioResults() {
-  const options = [...store.state.customExercises, ...store.database].filter(isCardio);
-  const added = new Set(store.state.cardio.items.map(i => i.exId));
-  $("cardioResults").innerHTML = options.map(ex => resultRowHtml(ex, added.has(ex.id))).join("");
-  hintAdd();
-}
-
-$("cardioResults").addEventListener("click", event => {
-  const result = event.target.closest(".result");
-  if (result) openDetail(result.dataset.id, { target: "cardio" });
-});
-
-$("customCardioBtn").addEventListener("click", async () => {
-  const result = await showForm({
-    title: "Create your own cardio",
-    submitLabel: "Create",
-    fields: [{ name: "name", label: "Name (e.g. Swimming, Hiking)", value: "" }]
-  });
-  if (!result || !result.name) return;
-
-  const ex = {
-    id: "custom_" + makeId(),
-    name: result.name,
-    equipment: "",
-    primaryMuscles: [],
-    secondaryMuscles: [],
-    category: "cardio",
-    custom: true
-  };
-  store.state.customExercises.push(ex);
-  saveState();
-  renderCardioResults();
-  openDetail(ex.id, { target: "cardio" });
-});
+setupCardio();
 
 setupHistory();
 
@@ -842,7 +696,7 @@ function noResultsHtml(pool, words) {
 }
 
 // One row in a list of exercises to add. added = it's already in the list.
-function resultRowHtml(ex, added) {
+export function resultRowHtml(ex, added) {
   const meta = [ex.primaryMuscles.join(", "), ex.equipment, ex.custom ? "custom" : ""].filter(Boolean).join(" · ");
   return `
     <li class="swipe swipe-add">
@@ -895,7 +749,7 @@ enableSwipeToAdd($("cardioResults"), LISTS.cardio);
 
 // target = which list it would be added to ("workout" or "cardio").
 // fromCard = opened from a card that's already in that list.
-function openDetail(exId, { target = "workout", fromCard = false } = {}) {
+export function openDetail(exId, { target = "workout", fromCard = false } = {}) {
   const ex = getExercise(exId);
   if (!ex) return;
   const list = LISTS[target];

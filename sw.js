@@ -26,6 +26,7 @@ const PRECACHE = [
   "js/themes.js",
   "js/tabs.js",
   "js/history.js",
+  "js/cardio.js",
   "js/app.js",
   "icons/icon.svg",
   "icons/icon-192.png",
