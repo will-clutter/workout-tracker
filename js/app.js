@@ -23,6 +23,7 @@ import { renderThemeSwatches, renderSettingPicks, setupThemes } from "./themes.j
 import { setupTabs } from "./tabs.js";
 import { logSession, renderHistory, setupHistory } from "./history.js";
 import { openDetail } from "./details.js";
+import { setupCustomExercises } from "./custom-exercises.js";
 import { filters, renderResults, setupBrowser, setupBrowserEvents } from "./browser.js";
 import { renderCardio, cardioSummaryHtml, renderCardioResults, logCardio, setupCardio } from "./cardio.js";
 
@@ -609,45 +610,7 @@ setupSheets();
 
 setupBrowserEvents();
 
-/* ============================================================
-   CUSTOM EXERCISES
-   ============================================================ */
-
-$("customBtn").addEventListener("click", async () => {
-  const result = await showForm({
-    title: "Create your own exercise",
-    submitLabel: "Create",
-    fields: [{ name: "name", label: "Exercise name", value: filters.search ? capitalize(filters.search) : "" }],
-    musclePicker: true
-  });
-  if (!result || !result.name) return;
-
-  const ex = {
-    id: "custom_" + makeId(),
-    name: result.name,
-    equipment: "",
-    primaryMuscles: result.primary,
-    secondaryMuscles: result.secondary,
-    custom: true
-  };
-  store.state.customExercises.push(ex);
-  saveState();
-  renderResults();
-  openDetail(ex.id);
-});
-
-export async function deleteCustomExercise(ex) {
-  const ok = await confirmDialog(`Delete "${ex.name}"?`, "It will also be removed from any workouts.", "Delete");
-  if (!ok) return;
-  store.state.customExercises = store.state.customExercises.filter(e => e.id !== ex.id);
-  [...store.state.workouts, store.state.cardio].forEach(w => { w.items = w.items.filter(i => i.exId !== ex.id); });
-  saveState();
-  closeSheet("detailSheet");
-  renderResults();
-  renderCardioResults();
-  renderWorkout();
-  renderCardio();
-}
+setupCustomExercises();
 
 /* ============================================================
    WORKOUTS (switch / new / rename / delete)

@@ -5,8 +5,9 @@
 import { $, store, saveState, getExercise, LISTS, isInList, PHOTO_DIR } from "./store.js";
 import { showToast } from "./ui/toast.js";
 import { openSheet, closeSheet } from "./ui/sheets.js";
+import { deleteCustomExercise } from "./custom-exercises.js";
 // TEMP: these move out of app.js in later steps
-import { openCards, legendHtml, deleteCustomExercise } from "./app.js";
+import { openCards, legendHtml } from "./app.js";
 
 // target = which list it would be added to ("workout" or "cardio").
 // fromCard = opened from a card that's already in that list.
