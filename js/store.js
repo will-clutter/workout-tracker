@@ -6,7 +6,8 @@
 
 import { showToast } from "./ui/toast.js";
 // TEMP: these still live in app.js until their own files exist
-import { summaryHtml, renderWorkout, renderResults } from "./app.js";
+import { summaryHtml, renderWorkout } from "./app.js";
+import { renderResults } from "./browser.js";
 import { cardioSummaryHtml, renderCardio, renderCardioResults } from "./cardio.js";
 
 export const STORAGE_KEY = "workout-logbook-v1";
