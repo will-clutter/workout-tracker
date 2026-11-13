@@ -12,8 +12,9 @@ import { showForm } from "./ui/forms.js";
 import { hintCrossOff, hintAdd } from "./ui/swipe.js";
 import { renderHistory } from "./history.js";
 import { resultRowHtml } from "./browser.js";
+import { openDetail } from "./details.js";
 // TEMP: these move out of app.js in later steps
-import { fillCardLists, openCards, thumbHtml, doneButtonHtml, openDetail } from "./app.js";
+import { fillCardLists, openCards, thumbHtml, doneButtonHtml } from "./app.js";
 
 export function renderCardio() {
   const items = store.state.cardio.items;
