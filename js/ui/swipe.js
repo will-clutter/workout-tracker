@@ -3,8 +3,7 @@
    ============================================================ */
 
 import { $, store, saveState, prefersReducedMotion } from "../store.js";
-// TEMP: openSheets moves to ui/sheets.js in the next step
-import { openSheets } from "../app.js";
+import { openSheets } from "./sheets.js";
 
 // How far a swipe has to go to count, as a share of the row's width (a third)
 export const SWIPE_THRESHOLD = 1 / 3;
