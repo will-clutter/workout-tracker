@@ -1861,6 +1861,71 @@ $("themeSwatches").addEventListener("click", event => {
 });
 
 /* ============================================================
+   BACKUP (export / import your data as a file)
+   The file format and checks are in logic.js (buildExport, parseImport).
+   ============================================================ */
+
+const PREIMPORT_KEY = STORAGE_KEY + "-preimport"; // safety copy of what was here before an import
+
+// Swap in new data. Everything else (saving, redrawing) is up to the caller.
+function replaceState(newState) {
+  state = newState;
+}
+
+function redrawEverything() {
+  applyTheme(state.theme);
+  renderWorkout();
+  renderCardio();
+  renderHistory();
+  renderThemeSwatches();
+  renderSettingPicks();
+}
+
+$("exportBtn").addEventListener("click", () => {
+  const text = JSON.stringify(buildExport(state), null, 2);
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  link.download = exportFileName();
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  showToast("Backup saved");
+});
+
+$("importBtn").addEventListener("click", () => $("importFile").click());
+
+$("importFile").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  event.target.value = ""; // so choosing the same file again still fires
+  if (!file) return;
+
+  const result = parseImport(await file.text());
+  if (!result.ok) return showToast(result.error);
+
+  const incoming = result.state;
+  const summary = `${plural(incoming.workouts.length, "workout")}, ${plural(incoming.history.length, "logged session")} and ${plural(incoming.customExercises.length, "custom exercise")}`;
+  const ok = await confirmDialog("Replace all your data?", `${summary} from this file will replace everything on this device.`, "Replace");
+  if (!ok) return;
+
+  const before = state;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw !== null) localStorage.setItem(PREIMPORT_KEY, raw);
+  } catch (err) { /* storage blocked or full; the Undo below still works */ }
+
+  incoming.hintsSeen = before.hintsSeen; // swipe hints are per device
+  replaceState(incoming);
+  saveState();
+  redrawEverything();
+  showToast("Imported your backup", "Undo", () => {
+    replaceState(before);
+    saveState();
+    redrawEverything();
+  });
+});
+
+/* ============================================================
    FORMS + CONFIRM (small pop-up questions)
    ============================================================ */
 
@@ -1974,3 +2039,10 @@ async function start() {
 }
 
 start();
+
+// Offline support: sw.js caches the app so it opens without a connection.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(err => console.warn("Service worker failed", err));
+  });
+}

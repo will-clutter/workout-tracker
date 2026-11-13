@@ -232,6 +232,47 @@ function parseSavedState(text) {
   return defaultState();
 }
 
+/* ---------- Backup file (export / import) ----------
+   A backup is your saved data wrapped in a small label, so we can tell
+   it's ours and which format it's in. hintsSeen is left out: it only
+   records which swipe hints this device has already shown. */
+
+const BACKUP_APP = "workout-logbook";
+const BACKUP_VERSION = 1; // the file format (not the data's own version)
+
+function buildExport(state, now = new Date()) {
+  const copy = JSON.parse(JSON.stringify(state));
+  delete copy.hintsSeen;
+  return { app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: now.toISOString(), state: copy };
+}
+
+// workout-logbook-2026-11-12.json (local date)
+function exportFileName(now = new Date()) {
+  const pad = n => String(n).padStart(2, "0");
+  return `${BACKUP_APP}-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.json`;
+}
+
+// Checks a chosen file's text. Returns { ok: true, state } (cleaned like saved data) or { ok: false, error }.
+// parseSavedState alone isn't enough here: it turns anything unreadable into a fresh empty state,
+// and for an import that would quietly wipe your data.
+function parseImport(text) {
+  let file;
+  try {
+    file = JSON.parse(text);
+  } catch (err) {
+    return { ok: false, error: "That file isn't valid JSON." };
+  }
+  if (!isRecord(file) || file.app !== BACKUP_APP) return { ok: false, error: "That isn't a Workout Logbook backup." };
+  if (!Number.isInteger(file.version) || file.version < 1) return { ok: false, error: "That backup has no readable version." };
+  if (file.version > BACKUP_VERSION) return { ok: false, error: "That backup is from a newer version of the app." };
+  if (!isRecord(file.state) || records(file.state.workouts).length === 0) {
+    return { ok: false, error: "That backup has no workouts in it." };
+  }
+  const state = parseSavedState(JSON.stringify(file.state));
+  delete state.hintsSeen;
+  return { ok: true, state };
+}
+
 // The workout currently on screen (or the first one, if that one's gone)
 function findActiveWorkout(state) {
   return state.workouts.find(w => w.id === state.activeWorkoutId) || state.workouts[0];
@@ -547,6 +588,7 @@ if (typeof module !== "undefined") {
     editDistance, suggestSearch, glideTabIndex,
     stretchForSpeed, sortSessionsNewestFirst, cleanCollapsed, COLLAPSE_KEYS,
     groupSessionsByMonth, groupMonthsByYear, searchWords, sessionMatches, searchSessions, highlightText,
-    moveTodoItem, DEFAULT_SETTINGS, cleanSettings, unitLabels, showWeight, showDistance, storeWeight, storeDistance
+    moveTodoItem, DEFAULT_SETTINGS, cleanSettings, unitLabels, showWeight, showDistance, storeWeight, storeDistance,
+    BACKUP_APP, BACKUP_VERSION, buildExport, exportFileName, parseImport
   };
 }
