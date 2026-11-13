@@ -24,6 +24,7 @@ import { setupTabs } from "./tabs.js";
 import { logSession, renderHistory, setupHistory } from "./history.js";
 import { openDetail } from "./details.js";
 import { setupCustomExercises } from "./custom-exercises.js";
+import { renameWorkout, setupWorkouts } from "./workouts.js";
 import { filters, renderResults, setupBrowser, setupBrowserEvents } from "./browser.js";
 import { renderCardio, cardioSummaryHtml, renderCardioResults, logCardio, setupCardio } from "./cardio.js";
 
@@ -612,81 +613,7 @@ setupBrowserEvents();
 
 setupCustomExercises();
 
-/* ============================================================
-   WORKOUTS (switch / new / rename / delete)
-   ============================================================ */
-
-$("workoutSwitcher").addEventListener("click", () => {
-  renderWorkoutsList();
-  openSheet("workoutsSheet");
-});
-
-function renderWorkoutsList() {
-  $("workoutsList").innerHTML = store.state.workouts.map(w => `
-    <li class="${w.id === store.state.activeWorkoutId ? "current" : ""}" data-id="${w.id}">
-      <button class="pick" data-action="pick">
-        ${escapeHtml(w.name)}
-        <small>${plural(w.items.length, "exercise")}</small>
-      </button>
-      <button class="icon-btn" data-action="rename" aria-label="Rename">✎</button>
-      <button class="icon-btn" data-action="delete" aria-label="Delete">${ICONS.trash}</button>
-    </li>`).join("");
-}
-
-$("workoutsList").addEventListener("click", async event => {
-  const button = event.target.closest("[data-action]");
-  if (!button) return;
-  const workout = store.state.workouts.find(w => w.id === button.closest("li").dataset.id);
-
-  if (button.dataset.action === "pick") {
-    store.state.activeWorkoutId = workout.id;
-    saveState();
-    renderWorkout();
-    closeSheet("workoutsSheet");
-  }
-  if (button.dataset.action === "rename") {
-    await renameWorkout(workout);
-    renderWorkoutsList();
-  }
-  if (button.dataset.action === "delete") {
-    if (store.state.workouts.length === 1) return showToast("You need at least one workout");
-    const ok = await confirmDialog(`Delete "${workout.name}"?`, "Your logged history stays.", "Delete");
-    if (!ok) return;
-    store.state.workouts = store.state.workouts.filter(w => w.id !== workout.id);
-    if (store.state.activeWorkoutId === workout.id) store.state.activeWorkoutId = store.state.workouts[0].id;
-    saveState();
-    renderWorkout();
-    renderWorkoutsList();
-  }
-});
-
-$("newWorkoutBtn").addEventListener("click", async () => {
-  const result = await showForm({
-    title: "New workout",
-    submitLabel: "Create",
-    fields: [{ name: "name", label: "Name (e.g. Upper, Lower, Push Day)", value: "" }]
-  });
-  if (!result || !result.name) return;
-  const workout = { id: makeId(), name: result.name, items: [] };
-  store.state.workouts.push(workout);
-  store.state.activeWorkoutId = workout.id;
-  saveState();
-  renderWorkout();
-  closeSheet("workoutsSheet");
-  showToast(`Created ${workout.name}`);
-});
-
-async function renameWorkout(workout) {
-  const result = await showForm({
-    title: "Rename workout",
-    submitLabel: "Save",
-    fields: [{ name: "name", label: "Workout name", value: workout.name }]
-  });
-  if (!result || !result.name) return;
-  workout.name = result.name;
-  saveState();
-  renderWorkout();
-}
+setupWorkouts();
 
 setupThemes();
 
