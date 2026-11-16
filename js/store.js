@@ -10,6 +10,7 @@ import { renderResults } from "./browser.js";
 import { cardioSummaryHtml, renderCardio, renderCardioResults } from "./cardio.js";
 
 export const STORAGE_KEY = "workout-logbook-v1";
+const PREMIGRATION_KEY = STORAGE_KEY + "-premigration"; // your data as it was before the UUID upgrade
 // Exercise pictures are stored in the project (images/ folder), so ad blockers
 // can't block them and they load fast. thumbs = small squares, photos = bigger.
 export const THUMB_DIR = "images/thumbs/";
@@ -28,11 +29,23 @@ export const store = { state: null, database: [], databaseById: {} };
 
 // Read saved data from the browser's storage (localStorage)
 export function loadState() {
+  let raw;
   try {
-    return parseSavedState(localStorage.getItem(STORAGE_KEY));
+    raw = localStorage.getItem(STORAGE_KEY);
   } catch (err) {
     return defaultState(); // storage blocked
   }
+  // Data saved before UUIDs gets upgraded here. Keep a copy of the original text first, and
+  // never overwrite that copy. (If storage is full the upgrade just isn't saved yet; it simply
+  // runs again next time, with the same data under new ids, which is harmless.)
+  const { state, changed } = migrateState(parseSavedState(raw));
+  if (changed && raw !== null) {
+    try {
+      if (localStorage.getItem(PREMIGRATION_KEY) === null) localStorage.setItem(PREMIGRATION_KEY, raw);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (err) { /* see above */ }
+  }
+  return state;
 }
 
 export function saveState() {

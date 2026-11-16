@@ -7,14 +7,20 @@
 const DEFAULT_SETS = "3";
 const DEFAULT_REPS = "10";
 
-// A short random ID, used to tell items apart
+// Which shape the saved data is in. 1 = short random ids (the original), 2 = UUIDs.
+const SCHEMA_VERSION = 2;
+
+// A random UUID like "8a4cc732-f46a-428f-a666-752466e15d70", used to tell items apart.
+// Phones and computers can each make these on their own, offline, without ever clashing,
+// which is what lets your data sync later. (Needs https or localhost; GitHub Pages is https.)
 function makeId() {
-  return Math.random().toString(36).slice(2, 10);
+  return crypto.randomUUID();
 }
 
 function defaultState() {
   const id = makeId();
   return {
+    schemaVersion: SCHEMA_VERSION,
     workouts: [{ id, name: "Your Workout", items: [] }],
     activeWorkoutId: id,
     customExercises: [],
@@ -230,6 +236,63 @@ function parseSavedState(text) {
     console.warn("Couldn't read saved data, starting fresh.", err);
   }
   return defaultState();
+}
+
+/* ---------- Upgrading old data to UUID ids ----------
+   Data saved before UUIDs has short ids like "k3j9x2ab". migrateState gives each of
+   those a fresh UUID and updates everything that points at it. It runs after
+   parseSavedState (which only cleans up damage). It is safe to run any number of
+   times: an id that is already a UUID is left alone, so a second run changes nothing.
+   Built-in exercises keep their own ids (e.g. "Barbell_Deadlift"). */
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = value => typeof value === "string" && UUID_PATTERN.test(value);
+
+// Returns { state, changed } with a new object; the one passed in is not touched.
+// "changed" says whether anything was remapped, so the caller knows to keep a safety copy and save.
+function migrateState(state) {
+  const next = JSON.parse(JSON.stringify(state));
+  let changed = false;
+
+  // Gives obj[key] a new UUID unless it already is one. Returns [old, new] when it changed it.
+  const renew = (obj, key) => {
+    if (isUuid(obj[key])) return null;
+    const old = obj[key];
+    obj[key] = makeId();
+    changed = true;
+    return [old, obj[key]];
+  };
+  // old id -> new id for things other data points at. With duplicate old ids, the first one wins.
+  const remember = (map, pair) => {
+    if (pair && typeof pair[0] === "string" && !map.has(pair[0])) map.set(pair[0], pair[1]);
+  };
+
+  const workoutIds = new Map();
+  records(next.workouts).forEach(workout => {
+    remember(workoutIds, renew(workout, "id"));
+    records(workout.items).forEach(item => renew(item, "uid"));
+  });
+  if (workoutIds.has(next.activeWorkoutId)) next.activeWorkoutId = workoutIds.get(next.activeWorkoutId);
+
+  const customIds = new Map();
+  records(next.customExercises).forEach(ex => remember(customIds, renew(ex, "id")));
+
+  // Entries (workout and cardio) that used one of your custom exercises follow it to its new id
+  const cardioItems = isRecord(next.cardio) ? records(next.cardio.items) : [];
+  cardioItems.forEach(item => renew(item, "uid"));
+  const entries = [...records(next.workouts).flatMap(w => records(w.items)), ...cardioItems];
+  entries.forEach(item => {
+    if (customIds.has(item.exId)) item.exId = customIds.get(item.exId);
+  });
+
+  // History entries only store exercise names, so nothing points into them
+  records(next.history).forEach(entry => renew(entry, "id"));
+
+  if (!(next.schemaVersion >= SCHEMA_VERSION)) {
+    next.schemaVersion = SCHEMA_VERSION;
+    changed = true;
+  }
+  return { state: next, changed };
 }
 
 /* ---------- Backup file (export / import) ----------
@@ -581,6 +644,7 @@ function highlightText(text, words) {
 if (typeof module !== "undefined") {
   module.exports = {
     DEFAULT_SETS, DEFAULT_REPS, makeId, defaultState, newItem, plural, escapeHtml, capitalize,
+    SCHEMA_VERSION, isUuid, migrateState,
     parseSavedState, findActiveWorkout, hasExercise, findExercise, buildHistoryEntry, clearCrossOffsFromOtherDays,
     WHOLE_FIELDS, DECIMAL_FIELDS, sanitizeWhole, sanitizeMinSec, sanitizeDecimal, savedDecimal, cleanNumbers,
     exerciseMatches, isCardio,

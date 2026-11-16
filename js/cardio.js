@@ -145,7 +145,7 @@ export function setupCardio() {
     if (!result || !result.name) return;
 
     const ex = {
-      id: "custom_" + makeId(),
+      id: makeId(),
       name: result.name,
       equipment: "",
       primaryMuscles: [],

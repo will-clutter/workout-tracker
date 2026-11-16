@@ -51,7 +51,7 @@ export function setupBackup() {
     const result = parseImport(await file.text());
     if (!result.ok) return showToast(result.error);
 
-    const incoming = result.state;
+    const incoming = migrateState(result.state).state; // an older backup still has short ids
     const summary = `${plural(incoming.workouts.length, "workout")}, ${plural(incoming.history.length, "logged session")} and ${plural(incoming.customExercises.length, "custom exercise")}`;
     const ok = await confirmDialog("Replace all your data?", `${summary} from this file will replace everything on this device.`, "Replace");
     if (!ok) return;
