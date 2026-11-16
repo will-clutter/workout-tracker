@@ -123,7 +123,7 @@
         <button class="seg on" data-view="workouts" role="tab" aria-selected="true">Workouts</button>
         <button class="seg" data-view="cardio" role="tab" aria-selected="false">Cardio</button>
       </div>
-      <input id="historySearch" class="search hidden" type="search" placeholder="Search sessions, exercises, notes…" aria-label="Search your logged sessions" autocomplete="off">
+      <input id="historySearch" name="history-search" class="search hidden" type="search" placeholder="Search sessions, exercises, notes…" aria-label="Search your logged sessions" autocomplete="off">
       <p id="historyOrder" class="history-order muted">Most recent first</p>
       <p id="historyMatches" class="history-order muted hidden" role="status" aria-live="polite"></p>
       <ul id="historyList" class="history-list"></ul>
@@ -166,9 +166,9 @@
       <h2>Add Exercise</h2>
       <button class="icon-btn close-sheet" aria-label="Close">✕</button>
     </div>
-    <input id="searchInput" class="search" type="search" placeholder="Search 870+ exercises…" autocomplete="off">
+    <input id="searchInput" name="search" class="search" type="search" placeholder="Search 870+ exercises…" aria-label="Search exercises" autocomplete="off">
     <div id="muscleChips" class="chip-row"></div>
-    <select id="equipmentSelect" class="select">
+    <select id="equipmentSelect" name="equipment" class="select" aria-label="Equipment">
       <option value="">Any equipment</option>
     </select>
     <button id="customBtn" class="btn ghost small">＋ Create your own exercise</button>

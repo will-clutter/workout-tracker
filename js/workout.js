@@ -182,22 +182,22 @@ function buildExerciseCard(item) {
     <div class="editor"><div class="editor-inner"><div class="editor-content">
       <div class="stats">
         <div class="stat">
-          <label>Sets</label>
-          <input type="text" inputmode="numeric" autocomplete="off" data-field="sets" value="${escapeHtml(item.sets)}">
+          <label for="${item.uid}-sets">Sets</label>
+          <input id="${item.uid}-sets" name="sets" type="text" inputmode="numeric" autocomplete="off" data-field="sets" value="${escapeHtml(item.sets)}">
         </div>
         <div class="stat">
-          <label>Reps</label>
-          <input type="text" inputmode="numeric" autocomplete="off" data-field="reps" value="${escapeHtml(item.reps)}">
+          <label for="${item.uid}-reps">Reps</label>
+          <input id="${item.uid}-reps" name="reps" type="text" inputmode="numeric" autocomplete="off" data-field="reps" value="${escapeHtml(item.reps)}">
         </div>
         <div class="stat">
-          <label>Weight</label>
+          <label for="${item.uid}-weight">Weight</label>
           <div class="weight-wrap">
-            <input type="text" inputmode="decimal" autocomplete="off" placeholder="—" data-field="weight" value="${escapeHtml(showWeight(item.weight, units()))}">
+            <input id="${item.uid}-weight" name="weight" type="text" inputmode="decimal" autocomplete="off" placeholder="—" data-field="weight" value="${escapeHtml(showWeight(item.weight, units()))}">
             <span class="unit">${unitLabels(units()).weight}</span>
           </div>
         </div>
       </div>
-      <textarea class="notes" data-field="notes" placeholder="Notes (e.g. last set felt heavy, try 95 next time)">${escapeHtml(item.notes)}</textarea>
+      <textarea class="notes" id="${item.uid}-notes" name="notes" aria-label="Notes" data-field="notes" placeholder="Notes (e.g. last set felt heavy, try 95 next time)">${escapeHtml(item.notes)}</textarea>
       ${doneButtonHtml(item)}
       <div class="editor-actions">
         <button class="btn small" data-action="info">ⓘ More info</button>

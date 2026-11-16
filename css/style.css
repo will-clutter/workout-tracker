@@ -383,7 +383,7 @@ main { position: relative; }
 .stats { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 8px; }
 .stat { background: var(--input); border: 1px solid var(--border); border-radius: 12px; padding: 6px 10px; transition: border-color 0.2s, box-shadow 0.2s; }
 .stat:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.stat label { display: block; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
+.stat label, .stat .stat-label { display: block; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
 .stat input { width: 100%; background: none; border: none; outline: none; color: var(--text); font-size: 20px; font-weight: 700; padding: 2px 0; }
 .stat .unit { color: var(--muted); font-size: 13px; }
 .weight-wrap { display: flex; align-items: baseline; gap: 4px; }

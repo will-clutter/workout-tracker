@@ -37,26 +37,26 @@ export function cardioSummaryHtml(item) {
 }
 
 // One number box on a cardio card
-function cardioStatHtml(label, field, value, unit, inputmode = "decimal") {
+function cardioStatHtml(uid, label, field, value, unit, inputmode = "decimal") {
   return `<div class="stat">
-    <label>${label}</label>
+    <label for="${uid}-${field}">${label}</label>
     <div class="weight-wrap">
-      <input type="text" inputmode="${inputmode}" autocomplete="off" placeholder="—" data-field="${field}" value="${escapeHtml(value)}">
+      <input id="${uid}-${field}" name="${field}" type="text" inputmode="${inputmode}" autocomplete="off" placeholder="—" data-field="${field}" value="${escapeHtml(value)}">
       <span class="unit">${unit}</span>
     </div>
   </div>`;
 }
 
 // The Duration box: hours : minutes : seconds. Any of them can be left blank.
-function durationStatHtml(durationSec) {
+function durationStatHtml(uid, durationSec) {
   const parts = splitDuration(durationSec);
   const box = (key, unit) => `<div class="dur-part">
-      <input type="text" inputmode="numeric" autocomplete="off" placeholder="0" data-dur="${key}" value="${parts[key]}" aria-label="${unit}">
+      <input id="${uid}-dur-${key}" name="duration-${key}" type="text" inputmode="numeric" autocomplete="off" placeholder="0" data-dur="${key}" value="${parts[key]}" aria-label="Duration, ${unit}">
       <span class="unit">${unit}</span>
     </div>`;
   return `<div class="stat duration-stat">
-    <label>Duration</label>
-    <div class="dur-wrap">
+    <span class="stat-label" id="${uid}-dur-label">Duration</span>
+    <div class="dur-wrap" role="group" aria-labelledby="${uid}-dur-label">
       ${box("h", "hr")}<span class="dur-sep">:</span>${box("m", "min")}<span class="dur-sep">:</span>${box("s", "sec")}
     </div>
   </div>`;
@@ -84,16 +84,16 @@ function buildCardioCard(item) {
 
     <div class="editor"><div class="editor-inner"><div class="editor-content">
       <div class="stats cardio-stats">
-        ${durationStatHtml(item.durationSec)}
-        ${cardioStatHtml("Heart rate", "heartRate", item.heartRate, "bpm", "numeric")}
-        ${cardioStatHtml("Calories", "calories", item.calories, "cal", "numeric")}
-        ${cardioStatHtml("Distance", "distance", showDistance(item.distance, units()), unitLabels(units()).distance)}
+        ${durationStatHtml(item.uid, item.durationSec)}
+        ${cardioStatHtml(item.uid, "Heart rate", "heartRate", item.heartRate, "bpm", "numeric")}
+        ${cardioStatHtml(item.uid, "Calories", "calories", item.calories, "cal", "numeric")}
+        ${cardioStatHtml(item.uid, "Distance", "distance", showDistance(item.distance, units()), unitLabels(units()).distance)}
       </div>
       <div class="intensity">
         <span class="intensity-label">Intensity</span>
         ${INTENSITIES.map(level => `<button type="button" class="chip ${item.intensity === level ? "on" : ""}" data-action="intensity" data-level="${level}" aria-pressed="${item.intensity === level}">${level}</button>`).join("")}
       </div>
-      <textarea class="notes" data-field="notes" placeholder="Notes (e.g. intervals, incline 8)">${escapeHtml(item.notes)}</textarea>
+      <textarea class="notes" id="${item.uid}-notes" name="notes" aria-label="Notes" data-field="notes" placeholder="Notes (e.g. intervals, incline 8)">${escapeHtml(item.notes)}</textarea>
       ${doneButtonHtml(item)}
       <div class="editor-actions">
         <button class="btn small" data-action="info">ⓘ More info</button>
