@@ -9,10 +9,16 @@ import { cancelPendingForm } from "./forms.js";
 export const openSheets = []; // a stack, so a sheet can open on top of another
 const sheetOpeners = {}; // which element had focus before each sheet opened, so focus can go back
 
-// While any sheet is open, the page and tab bar can't be reached with Tab or a screen reader
-function setPageInert(inert) {
-  document.querySelector("main").inert = inert;
-  document.querySelector(".tabbar").inert = inert;
+// While any sheet is open, the page and tab bar can't be reached with Tab or a screen reader.
+// With sheets stacked, only the top one is live: every sheet underneath is inert too.
+function updateInert() {
+  const anyOpen = openSheets.length > 0;
+  document.querySelector("main").inert = anyOpen;
+  document.querySelector(".tabbar").inert = anyOpen;
+  const top = openSheets[openSheets.length - 1];
+  document.querySelectorAll(".sheet").forEach(sheet => {
+    sheet.inert = openSheets.includes(sheet.id) && sheet.id !== top;
+  });
 }
 
 export function openSheet(id) {
@@ -21,7 +27,7 @@ export function openSheet(id) {
     sheetOpeners[id] = document.activeElement;
     openSheets.push(id);
   }
-  setPageInert(true);
+  updateInert();
   // The newest sheet sits on top
   sheet.style.zIndex = 30 + openSheets.length;
   sheet.scrollTop = 0;
@@ -42,9 +48,9 @@ export function closeSheet(id) {
   if (index !== -1) openSheets.splice(index, 1);
   const opener = sheetOpeners[id];
   delete sheetOpeners[id];
+  updateInert(); // the sheet underneath (if any) becomes live again
+  if (opener && opener.isConnected) opener.focus({ preventScroll: true });
   if (openSheets.length === 0) {
-    setPageInert(false);
-    if (opener && opener.isConnected) opener.focus({ preventScroll: true });
     $("backdrop").classList.remove("show");
     document.body.style.overflow = "";
     hintCrossOff(); // e.g. back from adding your first exercises by swiping
