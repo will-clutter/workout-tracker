@@ -2,6 +2,22 @@
 
 What changed in Workout Logbook, newest first.
 
+## [1.6.0](https://github.com/will-clutter/workout-tracker/compare/workout-logbook-v1.5.0...workout-logbook-v1.6.0) (2026-11-16)
+
+
+### Features
+
+* drag a sheet down to close it ([335bd62](https://github.com/will-clutter/workout-tracker/commit/335bd62ad6677d61e67599e7281d12a4bfb0c3d2))
+* remember the last open tab ([c982fa2](https://github.com/will-clutter/workout-tracker/commit/c982fa27cce7d760dea69f71635708338e117cf0))
+* switch ids to UUIDs and migrate saved data ([9c3c871](https://github.com/will-clutter/workout-tracker/commit/9c3c8718ff4121b82d03146448209e4d42b106ce))
+
+
+### Bug Fixes
+
+* bypass browser cache when precaching ([e8dad8a](https://github.com/will-clutter/workout-tracker/commit/e8dad8a9724bfcb9f555782fd0237a3eb1121445))
+* give form fields ids, names and labels ([80feb2f](https://github.com/will-clutter/workout-tracker/commit/80feb2f84a65e517467aea4a295b2323c46f006f))
+* make sheets under the top sheet inert ([1f6219f](https://github.com/will-clutter/workout-tracker/commit/1f6219fa2c03b7c7a0db316144a7d4ba6d18f696))
+
 ## [1.5.0](https://github.com/will-clutter/workout-tracker/compare/workout-logbook-v1.4.0...workout-logbook-v1.5.0) (2026-11-13)
 
 
