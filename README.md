@@ -23,6 +23,10 @@ Built with JavaScript, HTML, and CSS (no frameworks), hosted on GitHub Pages. De
 - Input validation on every number field (whole numbers or decimals, no zeros)
 - Progress saved in the browser with localStorage
 - Mobile-first layout with a swipeable, hold-and-glide tab bar
+- Installable and works offline (service worker and web manifest)
+- Export and import your data as a file to back it up or move devices
+- Remembers the last tab you had open
+- Drag a slide-up panel down to close it
 
 ## Roadmap
 
@@ -35,13 +39,13 @@ Checked items are implemented. Unchecked items are planned.
 - [x] Workout and cardio history
 - [x] Multiple low-glare color themes
 - [x] Local storage persistence
-- [ ] Offline support (service worker and web manifest)
+- [x] Offline support (service worker and web manifest)
 - [x] Always-visible Add button and collapsible sections
 - [x] Settings: color scheme, Imperial / Metric units, duration display format
 - [x] Drag to reorder exercises
 - [x] History polish: swipe to delete with Undo, animated Workouts / Cardio switch
-- [ ] Export and import backup
-- [ ] Unique IDs for every workout and cardio entry (with migration for existing data)
+- [x] Export and import backup
+- [x] Unique IDs for every workout and cardio entry (with migration for existing data)
 - [ ] Cloud sync with Supabase (PostgreSQL + Row Level Security)
 - [ ] Passwordless anonymous identity (UUID per user)
 - [ ] Optional email magic link for account recovery and multi-device sync
@@ -56,8 +60,8 @@ Next up is cloud sync with Supabase:
 - **Identity:** passwordless anonymous sign-in by default, so every user
   gets a UUID. Users can optionally add an email (magic link, no password)
   to recover their data or sync across devices.
-- **Backups:** export and import, so users can move their data to a new device
-- **Offline:** local storage stays as the offline copy
+- **Offline:** local storage stays as the offline copy, so the app keeps
+  working without a connection
 
 Once that's done, this version will be considered complete. I plan to
 rebuild it later with React and a custom Kotlin/Ktor API as a separate project.
@@ -81,6 +85,9 @@ The app is designed to be easy on the eyes and usable without a mouse or touch g
 |---|---|
 | `index.html` | The page layout |
 | `css/style.css` | Colors, spacing, animations. Theme colors are at the top. |
+| `sw.js` | The service worker: caches the app files (`PRECACHE`) so it works offline |
+| `manifest.webmanifest` | Makes the app installable (name, colors, icons) |
+| `icons/` | App icons for install and the home screen |
 | `js/main.js` | Where the app starts: loads your data, switches on each part, starts it |
 | `js/store.js` | Shared data (`store.state`, the exercise list) and small helpers |
 | `js/workout.js` | The Workout tab: cards, crossing off, folding the lists |
