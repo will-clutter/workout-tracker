@@ -9,17 +9,35 @@ import { hintCrossOff } from "./ui/swipe.js";
 let tabBar;
 let tabButtons;
 
-// Show a tab's screen. The circle is moved separately, so gliding can move it early.
-function showTab(button) {
-  if (button.classList.contains("active")) return; // already on this tab
+// Which tab was open last. It's a per-device screen preference, so it lives under its own key
+// rather than in your workout data (which is what gets exported and, later, synced).
+const LAST_TAB_KEY = "workout-logbook-last-tab";
+
+// Switch the screen to a tab (no scrolling, no hints)
+function applyTab(button) {
   tabButtons.forEach(b => {
     b.classList.toggle("active", b === button);
     if (b === button) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   });
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + button.dataset.tab));
   document.body.dataset.tab = button.dataset.tab; // shows the matching floating Add button
+}
+
+// Show a tab's screen. The circle is moved separately, so gliding can move it early.
+function showTab(button) {
+  if (button.classList.contains("active")) return; // already on this tab
+  applyTab(button);
+  try { localStorage.setItem(LAST_TAB_KEY, button.dataset.tab); } catch { /* storage blocked: just won't be remembered */ }
   window.scrollTo({ top: 0 });
   hintCrossOff(); // only does anything on the Workout and Cardio tabs
+}
+
+// On start-up, go back to the tab you were on (an unknown or missing value keeps the default)
+function restoreLastTab() {
+  let saved = null;
+  try { saved = localStorage.getItem(LAST_TAB_KEY); } catch { /* storage blocked */ }
+  const button = tabButtons.find(b => b.dataset.tab === saved);
+  if (button && !button.classList.contains("active")) applyTab(button);
 }
 
 /*
@@ -142,6 +160,7 @@ export function setupTabs() {
   tabBar = document.querySelector(".tabbar");
   tabButtons = [...document.querySelectorAll(".tab-btn")];
   tabIndicator = $("tabIndicator");
+  restoreLastTab(); // before the circle is placed, so it starts under the right tab
 
   // Keyboard / screen reader activation (detail is 0 for those). Touch and mouse go through gliding below.
   tabButtons.forEach(button => {
