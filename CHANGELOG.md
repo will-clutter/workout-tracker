@@ -2,6 +2,14 @@
 
 What changed in Workout Logbook, newest first.
 
+## [1.8.0](https://github.com/will-clutter/workout-tracker/compare/workout-logbook-v1.7.0...workout-logbook-v1.8.0) (2026-11-22)
+
+
+### Features
+
+* back up data to Supabase in the background ([b2871c1](https://github.com/will-clutter/workout-tracker/commit/b2871c102b0ffbf608d882febf063d2f6f38f274))
+* map saved data to cloud rows ([8b6dfe4](https://github.com/will-clutter/workout-tracker/commit/8b6dfe424d2bbd999b3e691dca73433cc1e4ac0d))
+
 ## [1.7.0](https://github.com/will-clutter/workout-tracker/compare/workout-logbook-v1.6.0...workout-logbook-v1.7.0) (2026-11-22)
 
 
