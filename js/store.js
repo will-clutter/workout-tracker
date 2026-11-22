@@ -25,7 +25,8 @@ export const RESULTS_PAGE_SIZE = 10;
 // state = your data (this is what gets saved on your phone).
 // database = the exercise list (filled in once data/exercises.json loads), databaseById = the same list by id.
 // They all live on one object, because other files can't reassign an imported variable.
-export const store = { state: null, database: [], databaseById: {} };
+// onSaved is set by sync.js, so the cloud copy hears about every save.
+export const store = { state: null, database: [], databaseById: {}, onSaved: null };
 
 // Read saved data from the browser's storage (localStorage)
 export function loadState() {
@@ -53,7 +54,9 @@ export function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store.state));
   } catch (err) {
     showToast("Couldn't save. Is storage full or blocked?");
+    return;
   }
+  if (store.onSaved) store.onSaved();
 }
 
 // "imperial" or "metric" (weights and distances are always saved in lb / mi)

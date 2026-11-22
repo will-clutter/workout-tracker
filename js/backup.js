@@ -18,8 +18,8 @@ function replaceState(newState) {
   store.state = newState;
 }
 
-function redrawEverything() {
-  applyTheme(store.state.theme);
+export function redrawEverything() {
+  if (store.state.theme) applyTheme(store.state.theme); // this device may never have picked one
   renderWorkout();
   renderCardio();
   renderHistory();

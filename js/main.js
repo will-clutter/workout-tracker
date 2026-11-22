@@ -23,6 +23,7 @@ import { renderWorkout, clearOldCrossOffs, setupWorkout } from "./workout.js";
 import { setupBrowser, setupBrowserEvents } from "./browser.js";
 import { renderCardio, setupCardio } from "./cardio.js";
 import { setupBackup } from "./backup.js";
+import { setupSync } from "./sync.js";
 
 store.state = loadState();
 
@@ -37,6 +38,7 @@ setupCustomExercises();
 setupWorkouts();
 setupThemes();
 setupBackup();
+setupSync();
 
 async function start() {
   clearOldCrossOffs(); // a new day: uncross yesterday's exercises
