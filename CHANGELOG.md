@@ -2,6 +2,13 @@
 
 What changed in Workout Logbook, newest first.
 
+## [1.9.0](https://github.com/will-clutter/workout-tracker/compare/workout-logbook-v1.8.0...workout-logbook-v1.9.0) (2026-11-22)
+
+
+### Features
+
+* delete cloud data, privacy note and idle-user cleanup ([8f32b19](https://github.com/will-clutter/workout-tracker/commit/8f32b19db0e494dd95f8fd872f5dde978fe7191e))
+
 ## [1.8.0](https://github.com/will-clutter/workout-tracker/compare/workout-logbook-v1.7.0...workout-logbook-v1.8.0) (2026-11-22)
 
 
