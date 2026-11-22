@@ -2,6 +2,14 @@
 
 What changed in Workout Logbook, newest first.
 
+## [1.7.0](https://github.com/will-clutter/workout-tracker/compare/workout-logbook-v1.6.0...workout-logbook-v1.7.0) (2026-11-22)
+
+
+### Features
+
+* add Supabase schema for cloud sync ([1ab9030](https://github.com/will-clutter/workout-tracker/commit/1ab903003a2154a36b9eb2c86babeacac4fb8c09))
+* give history exercises their own ids ([64520dd](https://github.com/will-clutter/workout-tracker/commit/64520dd7e2a4d6ecd7413167226445342027fb81))
+
 ## [1.6.0](https://github.com/will-clutter/workout-tracker/compare/workout-logbook-v1.5.0...workout-logbook-v1.6.0) (2026-11-16)
 
 
