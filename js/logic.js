@@ -674,6 +674,277 @@ function highlightText(text, words) {
     .map((part, i) => (i % 2 ? `<mark>${escapeHtml(part)}</mark>` : escapeHtml(part))).join("");
 }
 
+/* ---------- Cloud sync: your data as table rows ----------
+   The cloud stores your data in tables (see supabase/schema.sql), one row per workout,
+   exercise card, session and so on. These pure functions turn your saved data into those
+   rows and back, and work out what changed since the last sync. They never touch the
+   network, which is what lets them be tested. Left out on purpose (they stay on each
+   device): theme, collapsed headings and swipe hints. */
+
+const SYNC_TABLES = ["workouts", "custom_exercises", "workout_items", "cardio_items", "sessions", "session_items", "user_settings"];
+const SYNC_COLUMNS = {
+  workouts: ["id", "name", "position"],
+  custom_exercises: ["id", "name", "equipment", "primary_muscles", "secondary_muscles", "category"],
+  workout_items: ["id", "workout_id", "ex_id", "sets", "reps", "weight", "notes", "done_at", "position"],
+  cardio_items: ["id", "ex_id", "duration_sec", "intensity", "heart_rate", "calories", "distance", "notes", "done_at", "position"],
+  sessions: ["id", "performed_at", "kind", "workout_name"],
+  session_items: ["id", "session_id", "name", "sets", "reps", "weight", "duration_sec", "intensity", "heart_rate", "calories", "distance", "notes", "done", "position"],
+  user_settings: ["id", "units", "duration_format", "active_workout_id"]
+};
+const SYNC_NUMBER_COLUMNS = ["position", "sets", "reps", "weight", "duration_sec", "heart_rate", "calories", "distance"];
+const SYNC_TIME_COLUMNS = ["done_at", "performed_at"];
+const SYNC_LIST_COLUMNS = ["primary_muscles", "secondary_muscles"];
+const SYNC_SETTINGS_ID = "settings"; // user_settings has one row per person; this is its key in the snapshot
+
+// "" or missing -> null, otherwise the number (null if it isn't one)
+const syncNumber = value => {
+  if (value === "" || value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+// A time in milliseconds (how a crossed-off exercise remembers when) -> an ISO date, or null
+const syncTime = ms => {
+  const n = typeof ms === "number" || typeof ms === "string" ? Number(ms) : NaN;
+  return Number.isFinite(n) && !Number.isNaN(new Date(n).getTime()) ? new Date(n).toISOString() : null;
+};
+const syncText = value => (typeof value === "string" ? value : "");
+const syncIntensity = value => (INTENSITIES.includes(value) ? value : null);
+// A number from the cloud -> the text the app stores ("" when empty)
+const syncStored = value => (value === null || value === undefined ? "" : String(value));
+
+// Your data -> { tableName: [rows] }. Anything without a proper id is left out (it can't be synced).
+function stateToRows(state) {
+  const rows = Object.fromEntries(SYNC_TABLES.map(table => [table, []]));
+
+  records(state.workouts).forEach((workout, position) => {
+    if (!isUuid(workout.id)) return;
+    rows.workouts.push({ id: workout.id, name: syncText(workout.name), position });
+    records(workout.items).forEach((item, itemPosition) => {
+      if (!isUuid(item.uid)) return;
+      rows.workout_items.push({
+        id: item.uid, workout_id: workout.id, ex_id: syncText(item.exId),
+        sets: syncNumber(item.sets), reps: syncNumber(item.reps), weight: syncNumber(item.weight),
+        notes: syncText(item.notes), done_at: syncTime(item.doneAt), position: itemPosition
+      });
+    });
+  });
+
+  records(state.customExercises).forEach(ex => {
+    if (!isUuid(ex.id)) return;
+    rows.custom_exercises.push({
+      id: ex.id, name: syncText(ex.name), equipment: syncText(ex.equipment),
+      primary_muscles: Array.isArray(ex.primaryMuscles) ? ex.primaryMuscles.filter(m => typeof m === "string") : [],
+      secondary_muscles: Array.isArray(ex.secondaryMuscles) ? ex.secondaryMuscles.filter(m => typeof m === "string") : [],
+      category: ex.category === "cardio" ? "cardio" : null
+    });
+  });
+
+  const cardio = isRecord(state.cardio) ? state.cardio : {};
+  records(cardio.items).forEach((item, position) => {
+    if (!isUuid(item.uid)) return;
+    rows.cardio_items.push({
+      id: item.uid, ex_id: syncText(item.exId), duration_sec: syncNumber(item.durationSec),
+      intensity: syncIntensity(item.intensity), heart_rate: syncNumber(item.heartRate),
+      calories: syncNumber(item.calories), distance: syncNumber(item.distance),
+      notes: syncText(item.notes), done_at: syncTime(item.doneAt), position
+    });
+  });
+
+  records(state.history).forEach(entry => {
+    if (!isUuid(entry.id)) return;
+    const kind = isCardioSession(entry) ? "cardio" : "workout";
+    rows.sessions.push({ id: entry.id, performed_at: syncTime(Date.parse(entry.date)), kind, workout_name: syncText(entry.workoutName) });
+    records(entry.items).forEach((item, position) => {
+      if (!isUuid(item.id)) return;
+      const cardioItem = kind === "cardio";
+      rows.session_items.push({
+        id: item.id, session_id: entry.id, name: syncText(item.name),
+        sets: cardioItem ? null : syncNumber(item.sets), reps: cardioItem ? null : syncNumber(item.reps),
+        weight: cardioItem ? null : syncNumber(item.weight),
+        duration_sec: cardioItem ? syncNumber(item.durationSec) : null,
+        intensity: cardioItem ? syncIntensity(item.intensity) : null,
+        heart_rate: cardioItem ? syncNumber(item.heartRate) : null,
+        calories: cardioItem ? syncNumber(item.calories) : null,
+        distance: cardioItem ? syncNumber(item.distance) : null,
+        notes: syncText(item.notes), done: Boolean(item.done), position
+      });
+    });
+  });
+
+  const settings = cleanSettings(state.settings);
+  rows.user_settings.push({
+    id: SYNC_SETTINGS_ID, units: settings.units, duration_format: settings.durationFormat,
+    active_workout_id: isUuid(state.activeWorkoutId) ? state.activeWorkoutId : null
+  });
+  return rows;
+}
+
+// A short fingerprint of some text (cyrb53), so a snapshot can stay small
+function hashText(text) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+
+// The fingerprint of one row. Rows are always built by stateToRows or cleanRemoteRow, so their keys
+// come in a fixed order and the same content always gives the same fingerprint.
+const rowHash = row => hashText(JSON.stringify(row));
+
+// A row from the cloud, tidied to look exactly like one stateToRows makes (numbers as numbers, dates in one format)
+function cleanRemoteRow(table, remote) {
+  const row = {};
+  SYNC_COLUMNS[table].forEach(column => {
+    let value = table === "user_settings" && column === "id" ? SYNC_SETTINGS_ID : remote[column];
+    if (value === undefined) value = null;
+    if (SYNC_NUMBER_COLUMNS.includes(column)) value = syncNumber(value);
+    else if (SYNC_TIME_COLUMNS.includes(column)) value = value === null ? null : syncTime(Date.parse(value));
+    else if (SYNC_LIST_COLUMNS.includes(column)) value = Array.isArray(value) ? value : [];
+    else if (column === "notes" || column === "equipment") value = syncText(value);
+    else if (column === "done") value = Boolean(value);
+    row[column] = value;
+  });
+  return row;
+}
+
+// What needs sending. snapshot = { table: { id: fingerprint } } as of the last successful sync.
+// A row whose fingerprint is "!" + its current one was refused by the cloud before; it isn't retried until it changes.
+// Returns { upserts: {table: [rows]}, deletes: {table: [ids]}, hashes: {table: {id: fingerprint}} }.
+function diffRows(rows, snapshot = {}) {
+  const upserts = {}, deletes = {}, hashes = {};
+  SYNC_TABLES.forEach(table => {
+    const before = isRecord(snapshot[table]) ? snapshot[table] : {};
+    upserts[table] = [];
+    deletes[table] = [];
+    hashes[table] = {};
+    rows[table].forEach(row => {
+      const hash = rowHash(row);
+      hashes[table][row.id] = hash;
+      if (before[row.id] !== hash && before[row.id] !== "!" + hash) upserts[table].push(row);
+    });
+    if (table !== "user_settings") {
+      Object.keys(before).forEach(id => { if (!(id in hashes[table])) deletes[table].push(id); });
+    }
+  });
+  return { upserts, deletes, hashes };
+}
+
+// Your data with rows from the cloud folded in.
+// remote = { table: [rows from the cloud, oldest change first] }; a row with deleted_at set means "deleted".
+// A row you changed since the last sync (dirty) is never overwritten: yours wins and gets sent on the next sync.
+// Returns { state, snapshot } as new objects; the ones passed in are not touched.
+function applyRows(state, remote, snapshot = {}) {
+  const local = stateToRows(state);
+  const nextSnapshot = JSON.parse(JSON.stringify(isRecord(snapshot) ? snapshot : {}));
+  const maps = {}, localHash = {};
+  SYNC_TABLES.forEach(table => {
+    maps[table] = new Map(local[table].map(row => [row.id, row]));
+    localHash[table] = new Map(local[table].map(row => [row.id, rowHash(row)]));
+    nextSnapshot[table] = isRecord(nextSnapshot[table]) ? nextSnapshot[table] : {};
+  });
+  const isDirty = (table, id) => localHash[table].get(id) !== nextSnapshot[table][id];
+
+  SYNC_TABLES.forEach(table => {
+    (Array.isArray(remote[table]) ? remote[table] : []).forEach(raw => {
+      if (!isRecord(raw)) return;
+      const row = cleanRemoteRow(table, raw);
+      const id = row.id;
+      if (typeof id !== "string") return;
+      const has = maps[table].has(id);
+      if (raw.deleted_at) {
+        if (has && isDirty(table, id)) return; // edited since: keep it, it will be sent again
+        maps[table].delete(id);
+        delete nextSnapshot[table][id];
+        return;
+      }
+      if (has && isDirty(table, id)) return;
+      const hash = rowHash(row);
+      nextSnapshot[table][id] = hash;
+      if (!has || localHash[table].get(id) !== hash) maps[table].set(id, row);
+    });
+  });
+
+  // Things inside a workout or session that is gone go with it
+  const workoutIds = new Set(maps.workouts.keys());
+  const sessionIds = new Set(maps.sessions.keys());
+  for (const [id, row] of maps.workout_items) if (!workoutIds.has(row.workout_id)) { maps.workout_items.delete(id); delete nextSnapshot.workout_items[id]; }
+  for (const [id, row] of maps.session_items) if (!sessionIds.has(row.session_id)) { maps.session_items.delete(id); delete nextSnapshot.session_items[id]; }
+
+  return { state: rowsToState(state, maps), snapshot: nextSnapshot };
+}
+
+// Builds your data back from rows (kept in lists by id). Everything the cloud doesn't hold (theme, collapsed headings, hints) is kept from `state`.
+function rowsToState(state, maps) {
+  const byPosition = (a, b) => a.position - b.position || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  const group = (table, key) => {
+    const groups = new Map();
+    [...maps[table].values()].sort(byPosition).forEach(row => {
+      if (!groups.has(row[key])) groups.set(row[key], []);
+      groups.get(row[key]).push(row);
+    });
+    return groups;
+  };
+  const withDone = (item, row) => { if (row.done_at) item.doneAt = Date.parse(row.done_at); return item; };
+
+  const itemsOf = group("workout_items", "workout_id");
+  const workouts = [...maps.workouts.values()].sort(byPosition).map(row => ({
+    id: row.id, name: row.name,
+    items: (itemsOf.get(row.id) || []).map(item => withDone({
+      uid: item.id, exId: item.ex_id, sets: syncStored(item.sets), reps: syncStored(item.reps),
+      weight: syncStored(item.weight), notes: item.notes
+    }, item))
+  }));
+  if (workouts.length === 0) workouts.push({ id: makeId(), name: "Your Workout", items: [] }); // there is always at least one
+
+  const cardioItems = [...maps.cardio_items.values()].sort(byPosition).map(row => withDone({
+    uid: row.id, exId: row.ex_id, durationSec: row.duration_sec === null ? "" : row.duration_sec,
+    intensity: row.intensity || "", heartRate: syncStored(row.heart_rate), calories: syncStored(row.calories),
+    distance: syncStored(row.distance), notes: row.notes
+  }, row));
+
+  const sessionItemsOf = group("session_items", "session_id");
+  const history = [...maps.sessions.values()]
+    .sort((a, b) => (a.performed_at < b.performed_at ? 1 : a.performed_at > b.performed_at ? -1 : a.id < b.id ? -1 : 1))
+    .map(row => {
+      const cardio = row.kind === "cardio";
+      const entry = { id: row.id, date: row.performed_at, workoutName: row.workout_name };
+      if (cardio) entry.type = "cardio";
+      entry.items = (sessionItemsOf.get(row.id) || []).map(item => (cardio
+        ? { id: item.id, name: item.name, durationSec: item.duration_sec === null ? "" : item.duration_sec,
+            intensity: item.intensity || "", heartRate: syncStored(item.heart_rate), calories: syncStored(item.calories),
+            distance: syncStored(item.distance), notes: item.notes, done: item.done }
+        : { id: item.id, name: item.name, sets: syncStored(item.sets), reps: syncStored(item.reps),
+            weight: syncStored(item.weight), notes: item.notes, done: item.done }));
+      return entry;
+    });
+
+  // Custom exercises have no position: yours stay in the order you have them, new ones go on the end
+  const customExercises = [...maps.custom_exercises.values()].map(row => {
+    const ex = { id: row.id, name: row.name, equipment: row.equipment, primaryMuscles: row.primary_muscles, secondaryMuscles: row.secondary_muscles };
+    if (row.category === "cardio") ex.category = "cardio";
+    ex.custom = true;
+    return ex;
+  });
+
+  const settingsRow = maps.user_settings.get(SYNC_SETTINGS_ID);
+  const next = JSON.parse(JSON.stringify(state));
+  next.workouts = workouts;
+  next.customExercises = customExercises;
+  next.cardio = { ...(isRecord(next.cardio) ? next.cardio : {}), items: cardioItems };
+  next.history = history;
+  if (settingsRow) {
+    next.settings = cleanSettings({ units: settingsRow.units, durationFormat: settingsRow.duration_format });
+    if (workouts.some(w => w.id === settingsRow.active_workout_id)) next.activeWorkoutId = settingsRow.active_workout_id;
+  }
+  if (!workouts.some(w => w.id === next.activeWorkoutId)) next.activeWorkoutId = workouts[0].id;
+  return next;
+}
+
 // Lets the tests load these functions. The browser skips this line.
 if (typeof module !== "undefined") {
   module.exports = {
@@ -687,6 +958,7 @@ if (typeof module !== "undefined") {
     stretchForSpeed, sortSessionsNewestFirst, cleanCollapsed, COLLAPSE_KEYS,
     groupSessionsByMonth, groupMonthsByYear, searchWords, sessionMatches, searchSessions, highlightText,
     moveTodoItem, DEFAULT_SETTINGS, cleanSettings, unitLabels, showWeight, showDistance, storeWeight, storeDistance,
-    BACKUP_APP, BACKUP_VERSION, buildExport, exportFileName, parseImport
+    BACKUP_APP, BACKUP_VERSION, buildExport, exportFileName, parseImport,
+    SYNC_TABLES, stateToRows, rowHash, diffRows, applyRows, cleanRemoteRow
   };
 }
