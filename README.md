@@ -85,20 +85,7 @@ another device.
 - **Email sending:** sign-in emails go out through a personal Gmail account, which is
   fine for one person but not meant for many users.
 
-### Setting up your own Supabase project
-
-1. Create a project, then run `supabase/schema.sql` once in the SQL editor. It creates the
-   tables, Row Level Security policies and grants. Never edit it afterwards: later changes
-   go in numbered files in `supabase/migrations/`.
-2. Run `supabase/migrations/002_cleanup_idle_anonymous_users.sql` (needs the `pg_cron`
-   extension) for the weekly cleanup.
-3. Auth settings: turn on anonymous sign-ins and keep CAPTCHA off (an anonymous sign-in
-   can't send a CAPTCHA token). Connect your own SMTP sender and add `{{ .Token }}` to the
-   Magic Link and Change Email Address templates so the email shows the 6-digit code.
-4. Deploy `supabase/functions/delete-account/index.ts` as an Edge Function named
-   `delete-account` with Verify JWT off (the code checks the sign-in itself). It is the only
-   place the service-role key is used, and it reads it from the function's own secrets.
-5. Put your project URL and publishable key at the top of `js/sync.js`.
+The database schema, security rules and the delete-account Edge Function are in `supabase/`.
 
 ## Future plans
 
