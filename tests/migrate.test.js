@@ -1,7 +1,8 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
-  defaultState, makeId, isUuid, migrateState, parseSavedState, buildExport, parseImport, SCHEMA_VERSION
+  defaultState, makeId, isUuid, stableId, migrateState, parseSavedState, buildExport, parseImport,
+  buildHistoryEntry, buildCardioHistoryEntry, SCHEMA_VERSION
 } = require("../js/logic.js");
 
 // What the app saved before UUIDs: short ids, no schemaVersion
@@ -102,7 +103,7 @@ test("migrateState: nothing is lost, only ids change", () => {
     c.workouts.forEach(w => { delete w.id; w.items.forEach(i => { delete i.uid; if (String(i.exId).startsWith("custom_") || isUuid(i.exId)) delete i.exId; }); });
     c.customExercises.forEach(e => delete e.id);
     c.cardio.items.forEach(i => { delete i.uid; if (String(i.exId).startsWith("custom_") || isUuid(i.exId)) delete i.exId; });
-    c.history.forEach(h => delete h.id);
+    c.history.forEach(h => { delete h.id; h.items.forEach(i => delete i.id); });
     return c;
   };
   assert.deepEqual(strip(state), strip(before));
@@ -177,4 +178,57 @@ test("a state saved by the new code survives a save, load and export round trip"
   assert.equal(loaded.schemaVersion, SCHEMA_VERSION);
   assert.equal(migrateState(loaded).changed, false);
   assert.equal(buildExport(loaded).state.schemaVersion, SCHEMA_VERSION);
+});
+
+/* ---------- schemaVersion 3: History exercises get ids ---------- */
+
+test("stableId: same text gives the same UUID, different text a different one", () => {
+  assert.ok(isUuid(stableId("a:0")));
+  assert.equal(stableId("a:0"), stableId("a:0"));
+  assert.notEqual(stableId("a:0"), stableId("a:1"));
+  assert.notEqual(stableId("a:0"), stableId("b:0"));
+});
+
+test("migrateState: every History exercise gets its own id", () => {
+  const { state, changed } = migrateState(oldState());
+  assert.equal(changed, true);
+  const ids = state.history.flatMap(h => h.items.map(i => i.id));
+  assert.equal(ids.length, 2);
+  ids.forEach(id => assert.ok(isUuid(id)));
+  assert.equal(new Set(ids).size, ids.length);
+});
+
+test("migrateState: a version 2 save (UUIDs, no History exercise ids) is upgraded to 3", () => {
+  const v2 = migrateState(oldState()).state;
+  v2.schemaVersion = 2;
+  v2.history.forEach(h => h.items.forEach(i => delete i.id));
+  const { state, changed } = migrateState(v2);
+  assert.equal(changed, true);
+  assert.equal(state.schemaVersion, 3);
+  state.history.forEach(h => h.items.forEach(i => assert.ok(isUuid(i.id))));
+  assert.equal(migrateState(state).changed, false); // and a second run changes nothing
+});
+
+test("migrateState: History exercise ids depend only on the session id and position", () => {
+  const v2 = migrateState(oldState()).state;
+  v2.history.forEach(h => h.items.forEach(i => delete i.id));
+  const a = migrateState(v2).state;
+  const b = migrateState(v2).state;
+  assert.deepEqual(a.history, b.history);
+});
+
+test("migrateState: a History exercise that already has a UUID keeps it", () => {
+  const v2 = migrateState(oldState()).state;
+  const keep = v2.history[0].items[0].id;
+  v2.schemaVersion = 2;
+  assert.equal(migrateState(v2).state.history[0].items[0].id, keep);
+});
+
+test("buildHistoryEntry and buildCardioHistoryEntry: new exercises already have unique ids", () => {
+  const w = buildHistoryEntry({ name: "Legs", items: [{ exId: "A" }, { exId: "B" }] }, id => id);
+  const c = buildCardioHistoryEntry([{ exId: "A" }, { exId: "B" }], id => id);
+  const ids = [...w.items, ...c.items].map(i => i.id);
+  ids.forEach(id => assert.ok(isUuid(id)));
+  assert.equal(new Set(ids).size, 4);
+  assert.equal(migrateState({ ...defaultState(), history: [w, c] }).changed, false);
 });

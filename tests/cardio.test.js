@@ -3,7 +3,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
   isCardio, newCardioItem, cardioSummaryParts, buildCardioHistoryEntry, isCardioSession,
-  clearCrossOffsFromOtherDays, joinDuration, splitDuration, formatDuration
+  clearCrossOffsFromOtherDays, joinDuration, splitDuration, formatDuration, isUuid
 } = require("../js/logic.js");
 const database = require("../data/exercises.json");
 
@@ -114,7 +114,8 @@ test("buildCardioHistoryEntry: saves the cardio fields and what was done", () =>
   assert.equal(entry.type, "cardio");
   assert.equal(entry.workoutName, "Cardio");
   assert.equal(entry.date, now.toISOString());
-  assert.deepEqual(entry.items, [
+  entry.items.forEach(i => assert.ok(isUuid(i.id)));
+  assert.deepEqual(entry.items.map(({ id, ...rest }) => rest), [
     { name: "Stairmaster", durationSec: 1200, intensity: "Medium", heartRate: "", calories: "", distance: "", notes: "", done: true },
     { name: "Unknown exercise", durationSec: "", intensity: "", heartRate: "", calories: "", distance: "", notes: "skipped", done: false }
   ]);

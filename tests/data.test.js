@@ -3,7 +3,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
   parseSavedState, findActiveWorkout, hasExercise, findExercise,
-  buildHistoryEntry, clearCrossOffsFromOtherDays, cleanCollapsed, cleanSettings
+  buildHistoryEntry, clearCrossOffsFromOtherDays, cleanCollapsed, cleanSettings, isUuid
 } = require("../js/logic.js");
 
 // Keep the "Couldn't read saved data" warning out of the test output
@@ -117,7 +117,8 @@ test("buildHistoryEntry: records the workout, date and each exercise", () => {
   const entry = buildHistoryEntry(workout, () => "Squat", now);
   assert.equal(entry.workoutName, "Legs");
   assert.equal(entry.date, "2026-11-08T12:00:00.000Z");
-  assert.deepEqual(entry.items, [{ name: "Squat", sets: "5", reps: "5", weight: "225", notes: "felt good", done: true }]);
+  assert.ok(isUuid(entry.items[0].id));
+  assert.deepEqual(entry.items.map(({ id, ...rest }) => rest), [{ name: "Squat", sets: "5", reps: "5", weight: "225", notes: "felt good", done: true }]);
 });
 
 test("buildHistoryEntry: marks crossed-off exercises done and the rest not done", () => {

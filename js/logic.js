@@ -7,8 +7,9 @@
 const DEFAULT_SETS = "3";
 const DEFAULT_REPS = "10";
 
-// Which shape the saved data is in. 1 = short random ids (the original), 2 = UUIDs.
-const SCHEMA_VERSION = 2;
+// Which shape the saved data is in. 1 = short random ids (the original), 2 = UUIDs,
+// 3 = every History exercise also has its own id (needed to sync them).
+const SCHEMA_VERSION = 3;
 
 // A random UUID like "8a4cc732-f46a-428f-a666-752466e15d70", used to tell items apart.
 // Phones and computers can each make these on their own, offline, without ever clashing,
@@ -248,6 +249,27 @@ function parseSavedState(text) {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = value => typeof value === "string" && UUID_PATTERN.test(value);
 
+// A UUID worked out from some text, so the same text always gives the same id. Used for History
+// exercises that were saved before they had ids: two devices that hold the same session end up
+// with the same ids, instead of each inventing its own. (Not secret or random; just a stable label.)
+function stableId(text) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57, h3 = 0x9e3779b9, h4 = 0x85ebca6b;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+    h3 = Math.imul(h3 ^ c, 2246822519);
+    h4 = Math.imul(h4 ^ c, 3266489917);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h3 ^ (h3 >>> 13), 3266489909);
+  h3 = Math.imul(h3 ^ (h3 >>> 16), 2246822507) ^ Math.imul(h4 ^ (h4 >>> 13), 3266489909);
+  h4 = Math.imul(h4 ^ (h4 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const hex = [h1, h2, h3, h4].map(n => (n >>> 0).toString(16).padStart(8, "0")).join("");
+  // Version 4 / variant bits, so it looks like any other UUID
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${"89ab"[parseInt(hex[16], 16) & 3]}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 // Returns { state, changed } with a new object; the one passed in is not touched.
 // "changed" says whether anything was remapped, so the caller knows to keep a safety copy and save.
 function migrateState(state) {
@@ -286,7 +308,17 @@ function migrateState(state) {
   });
 
   // History entries only store exercise names, so nothing points into them
-  records(next.history).forEach(entry => renew(entry, "id"));
+  records(next.history).forEach(entry => {
+    renew(entry, "id");
+    // Each exercise inside gets its own id too, worked out from the session's id and its place in
+    // the list. This runs here (and is saved) before anything is ever sent to the cloud, so a
+    // retried upload can never create the same row twice.
+    records(entry.items).forEach((item, position) => {
+      if (isUuid(item.id)) return;
+      item.id = stableId(`${entry.id}:${position}`);
+      changed = true;
+    });
+  });
 
   if (!(next.schemaVersion >= SCHEMA_VERSION)) {
     next.schemaVersion = SCHEMA_VERSION;
@@ -357,6 +389,7 @@ function buildHistoryEntry(workout, findName, now = new Date()) {
     date: now.toISOString(),
     workoutName: workout.name,
     items: (workout.items || []).map(item => ({
+      id: makeId(),
       name: findName(item.exId) || "Unknown exercise",
       sets: item.sets, reps: item.reps, weight: item.weight, notes: item.notes,
       done: Boolean(item.doneAt)
@@ -427,6 +460,7 @@ function buildCardioHistoryEntry(items, findName, now = new Date()) {
     type: "cardio",
     workoutName: "Cardio",
     items: items.map(item => ({
+      id: makeId(),
       name: findName(item.exId) || "Unknown exercise",
       durationSec: item.durationSec, intensity: item.intensity, heartRate: item.heartRate,
       calories: item.calories, distance: item.distance, notes: item.notes,
@@ -644,7 +678,7 @@ function highlightText(text, words) {
 if (typeof module !== "undefined") {
   module.exports = {
     DEFAULT_SETS, DEFAULT_REPS, makeId, defaultState, newItem, plural, escapeHtml, capitalize,
-    SCHEMA_VERSION, isUuid, migrateState,
+    SCHEMA_VERSION, isUuid, stableId, migrateState,
     parseSavedState, findActiveWorkout, hasExercise, findExercise, buildHistoryEntry, clearCrossOffsFromOtherDays,
     WHOLE_FIELDS, DECIMAL_FIELDS, sanitizeWhole, sanitizeMinSec, sanitizeDecimal, savedDecimal, cleanNumbers,
     exerciseMatches, isCardio,
