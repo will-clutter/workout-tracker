@@ -13,7 +13,7 @@ import { showToast } from "./ui/toast.js";
 import { confirmDialog, choiceDialog } from "./ui/forms.js";
 import {
   getSyncClient, pauseSync, resumeSync, syncNow, setSwitchHandler, fetchAccountRows, adoptAccount,
-  saveStash, loadStash, clearStash
+  saveStash, loadStash, clearStash, isSyncOff, setSyncOff, forgetCloud
 } from "./sync.js";
 
 const FLOW_KEY = STORAGE_KEY + "-account-flow";       // { mode, email, at }: a code is on its way (survives the app being closed)
@@ -42,6 +42,13 @@ export function setupAccount() {
     renderAccount();
   });
   $("signOutBtn").addEventListener("click", signOut);
+  $("deleteAccountBtn").addEventListener("click", deleteCloudData);
+  $("syncOnBtn").addEventListener("click", async () => {
+    setSyncOff(false);
+    say("");
+    await refreshAccount();
+    resumeSync();
+  });
 
   refreshAccount();
   watchSignIn();
@@ -86,6 +93,7 @@ function endFlow() {
 /* ---------- what the Account block shows ---------- */
 
 async function refreshAccount() {
+  if (isSyncOff()) { user = null; return renderAccount(); }
   const supabase = await getSyncClient();
   if (!supabase) { user = null; return renderAccount("unavailable"); }
   const fresh = await supabase.auth.getUser(); // asks the server, so an email confirmed elsewhere shows up
@@ -100,16 +108,20 @@ async function refreshAccount() {
 }
 
 function renderAccount(problem) {
-  const signedIn = Boolean(user && user.email && !user.is_anonymous);
+  const off = isSyncOff();
+  const signedIn = !off && Boolean(user && user.email && !user.is_anonymous);
   const info = $("accountInfo");
-  if (problem === "unavailable") info.textContent = "Sign-in isn't available right now. Your data is still saved on this device.";
+  if (off) info.textContent = "Cloud backup is off, so there is no account. Your data is saved on this device only.";
+  else if (problem === "unavailable") info.textContent = "Sign-in isn't available right now. Your data is still saved on this device.";
   else if (signedIn) info.textContent = `Signed in as ${user.email}. Any device you sign in on with this email shares this data.`;
   else if (flow) info.textContent = `We sent a code to ${flow.email}. Enter it below (the link in the email works too).`;
   else info.textContent = "You're backing up without an account. Add your email to get your data back if this device is lost, or to use it on another device.";
 
-  $("accountEmailForm").classList.toggle("hidden", signedIn || Boolean(flow) || problem === "unavailable");
-  $("accountCodeForm").classList.toggle("hidden", signedIn || !flow);
+  $("accountEmailForm").classList.toggle("hidden", off || signedIn || Boolean(flow) || problem === "unavailable");
+  $("accountCodeForm").classList.toggle("hidden", off || signedIn || !flow);
   $("accountSignedIn").classList.toggle("hidden", !signedIn);
+  $("accountDelete").classList.toggle("hidden", off || !user);
+  $("accountOff").classList.toggle("hidden", !off);
 }
 
 // When an email's link is used (in this browser) or the account changes, update the screen
@@ -270,4 +282,35 @@ async function signOut() {
   user = null;
   await refreshAccount();
   resumeSync(); // signs in anonymously again and backs up what's here
+}
+
+/* ---------- deleting your cloud data ---------- */
+
+// Deletes the account and every backed-up row (the delete-account function in supabase/functions).
+// This device keeps its own data, and cloud backup is switched off so nothing is quietly uploaded again.
+async function deleteCloudData() {
+  const ok = await confirmDialog(
+    "Delete your cloud data?",
+    "This permanently deletes your account and every backed-up copy of your workouts. It can't be undone. This device keeps its own data, but cloud backup turns off (you can turn it back on).",
+    "Delete");
+  if (!ok) return;
+  if (!navigator.onLine) return say("You're offline. Try again when you're connected.");
+  const supabase = await getSyncClient();
+  if (!supabase) return say("Couldn't reach the cloud. Nothing was deleted.");
+
+  await pauseSync(); // nothing is sent while this happens
+  const { error } = await supabase.functions.invoke("delete-account", { method: "POST" });
+  if (error) {
+    const status = error.context && error.context.status;
+    say(status === 404 ? "Deleting isn't set up yet. Nothing was deleted." : "Couldn't delete your cloud data. Nothing was deleted. Try again in a moment.");
+    resumeSync();
+    return;
+  }
+  try { await supabase.auth.signOut({ scope: "local" }); } catch (err) { /* the user is gone already; this just clears the local sign-in */ }
+  endFlow();
+  forgetCloud();
+  user = null;
+  say("");
+  showToast("Your cloud data was deleted. Cloud backup is off.");
+  renderAccount();
 }

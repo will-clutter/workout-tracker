@@ -787,3 +787,6 @@ body[data-tab="workout"] .toast, body[data-tab="cardio"] .toast {
 .account-form { display: grid; gap: 8px; margin-top: 8px; }
 .account-form label.field-label { font-size: 13px; color: var(--muted); }
 #accountMessage:empty { display: none; }
+.privacy { margin-top: 12px; }
+.privacy summary { cursor: pointer; font-size: 14px; color: var(--muted); padding: 6px 0; }
+.privacy p { font-size: 13px; margin: 8px 0; }

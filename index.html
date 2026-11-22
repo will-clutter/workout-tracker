@@ -243,7 +243,21 @@
     <div id="accountSignedIn" class="editor-actions hidden">
       <button type="button" id="signOutBtn" class="btn small">Sign out</button>
     </div>
+    <div id="accountDelete" class="editor-actions hidden">
+      <button type="button" id="deleteAccountBtn" class="btn small danger">Delete my cloud data</button>
+    </div>
+    <div id="accountOff" class="editor-actions hidden">
+      <button type="button" id="syncOnBtn" class="btn small">Turn on cloud backup</button>
+    </div>
     <p id="accountMessage" class="muted" role="status"></p>
+    <details class="privacy">
+      <summary>What's stored in the cloud?</summary>
+      <p class="muted"><b>What is backed up:</b> your workouts and the exercises in them, your cardio, your logged history, your custom exercises, any notes you type, and your units and duration settings. Notes are stored as typed, so keep anything private out of them.</p>
+      <p class="muted"><b>Who it belongs to:</b> a random anonymous ID, created when the app first backs up. It contains no name. If you add an email, that email is stored with your account and used only to send you sign-in codes.</p>
+      <p class="muted"><b>Who can see it:</b> only you, signed in. It is stored with Supabase, the service this app uses for cloud storage and sign-in. The app has no ads or analytics.</p>
+      <p class="muted"><b>What stays on your device:</b> your color theme, folded headings and tips already shown.</p>
+      <p class="muted"><b>Deleting it:</b> "Delete my cloud data" permanently removes your account and every backed-up copy. Routine database backups kept by Supabase may hold the data for a short time afterwards. Accounts that were never given an email and haven't been used for about six months are deleted automatically.</p>
+    </details>
     <h3 class="setting-label" id="dataLabel">Your data</h3>
     <p class="muted">Your data is saved on this device. Export a backup file to keep a copy, or to move to another device. Importing replaces everything here.</p>
     <div class="editor-actions">

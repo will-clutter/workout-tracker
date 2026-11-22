@@ -18,6 +18,7 @@ import { redrawEverything } from "./backup.js";
 const SUPABASE_URL = "https://qjgpcljpjxvfhmiabffn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_gMI73N0jNLekzJbj9kXfGg_VToT1bqW";
 const META_KEY = STORAGE_KEY + "-sync"; // { userId, cursors, snapshot }: where this device is up to
+const OFF_KEY = STORAGE_KEY + "-sync-off"; // present = cloud backup is switched off on this device
 export const STASH_KEY = STORAGE_KEY + "-anon-session"; // the anonymous sign-in, kept safe while signing in with an email
 const AUTH_STORAGE_KEY = "sb-" + SUPABASE_URL.split("//")[1].split(".")[0] + "-auth-token"; // where supabase-js keeps the session
 const SAVE_DELAY_MS = 3000;   // wait a moment after a save, so a burst of edits goes up together
@@ -27,7 +28,7 @@ const PULL_OVERLAP_MS = 5000; // look back a little: a slow save in the cloud ca
 const MAX_RETRY_MS = 5 * 60 * 1000;
 
 let client = null;        // the Supabase client, once it has loaded
-let status = "starting";  // starting | syncing | synced | offline | error | unavailable | paused
+let status = "starting";  // starting | syncing | synced | offline | error | unavailable | paused | off
 let lastSyncedAt = null;
 let problemCount = 0;     // rows the cloud refused (see markRejected)
 let running = false;
@@ -45,6 +46,21 @@ export function setupSync() {
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") runSync(); });
   renderStatus();
   runSync();
+}
+
+// Cloud backup can be switched off (it is after the cloud data is deleted, so it isn't quietly uploaded again)
+export function isSyncOff() {
+  try { return localStorage.getItem(OFF_KEY) !== null; } catch (err) { return false; }
+}
+export function setSyncOff(off) {
+  try { if (off) localStorage.setItem(OFF_KEY, "1"); else localStorage.removeItem(OFF_KEY); } catch (err) { /* storage blocked */ }
+  if (off) setStatus("off");
+}
+// Forgets everything about the cloud copy on this device (not the data itself) and switches backup off
+export function forgetCloud() {
+  try { localStorage.removeItem(META_KEY); } catch (err) { /* nothing to do */ }
+  clearStash();
+  setSyncOff(true);
 }
 
 // account.js uses these while signing in with an email
@@ -98,6 +114,7 @@ function scheduleSync() {
 
 async function runSync() {
   clearTimeout(saveTimer);
+  if (isSyncOff()) return setStatus("off");
   if (paused) return;
   if (running) { again = true; return; }
   running = true;
@@ -311,6 +328,7 @@ function renderStatus() {
   const lines = {
     starting: "Connecting…",
     paused: "Waiting for you to finish signing in…",
+    off: "Cloud backup is off. Your data is saved on this device only.",
     syncing: "Syncing…",
     synced: `Backed up${time ? " at " + time : ""}.`,
     offline: "Offline. Changes will back up when you're back online.",
