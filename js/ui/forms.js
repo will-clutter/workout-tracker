@@ -20,6 +20,7 @@ export function cancelPendingForm() {
 export function showForm({ title, fields = [], submitLabel = "Save", musclePicker = false, message = "", danger = false }) {
   $("formTitle").textContent = title;
   const form = $("form");
+  form.onclick = null;
 
   form.innerHTML = `
     ${message ? `<p class="muted" style="margin:0">${escapeHtml(message)}</p>` : ""}
@@ -65,6 +66,33 @@ export function showForm({ title, fields = [], submitLabel = "Save", musclePicke
       formResolve = null;
       closeSheet("formSheet");
       resolve(values);
+    };
+  });
+}
+
+/*
+  A question with several buttons, like "Merge / Use account data / Cancel".
+  choices = [{ label, value, style }] (style is "primary" or "danger", or leave it out).
+  Returns the value of the button pressed, or null if the sheet is closed instead.
+*/
+export function choiceDialog({ title, message, choices }) {
+  $("formTitle").textContent = title;
+  const form = $("form");
+  form.onsubmit = event => event.preventDefault();
+  form.innerHTML = `
+    <p class="muted" style="margin:0">${escapeHtml(message)}</p>
+    ${choices.map((choice, i) => `<button type="button" class="btn ${choice.style || ""} big" data-choice="${i}">${escapeHtml(choice.label)}</button>`).join("")}
+  `;
+  openSheet("formSheet");
+  return new Promise(resolve => {
+    formResolve = resolve;
+    form.onclick = event => {
+      const button = event.target.closest("[data-choice]");
+      if (!button) return;
+      form.onclick = null;
+      formResolve = null;
+      closeSheet("formSheet");
+      resolve(choices[Number(button.dataset.choice)].value);
     };
   });
 }

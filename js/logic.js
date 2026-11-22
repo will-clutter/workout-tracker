@@ -4,6 +4,7 @@
    (see tests/). The browser loads this before main.js.
    ============================================================ */
 
+const DEFAULT_WORKOUT_NAME = "Your Workout";
 const DEFAULT_SETS = "3";
 const DEFAULT_REPS = "10";
 
@@ -22,7 +23,7 @@ function defaultState() {
   const id = makeId();
   return {
     schemaVersion: SCHEMA_VERSION,
-    workouts: [{ id, name: "Your Workout", items: [] }],
+    workouts: [{ id, name: DEFAULT_WORKOUT_NAME, items: [] }],
     activeWorkoutId: id,
     customExercises: [],
     history: [],
@@ -899,7 +900,7 @@ function rowsToState(state, maps) {
       weight: syncStored(item.weight), notes: item.notes
     }, item))
   }));
-  if (workouts.length === 0) workouts.push({ id: makeId(), name: "Your Workout", items: [] }); // there is always at least one
+  if (workouts.length === 0) workouts.push({ id: makeId(), name: DEFAULT_WORKOUT_NAME, items: [] }); // there is always at least one
 
   const cardioItems = [...maps.cardio_items.values()].sort(byPosition).map(row => withDone({
     uid: row.id, exId: row.ex_id, durationSec: row.duration_sec === null ? "" : row.duration_sec,
@@ -945,6 +946,68 @@ function rowsToState(state, maps) {
   return next;
 }
 
+/* ---------- Cloud sync: signing in on a device that already has data ----------
+   When you sign in with an email that already has an account, this device may hold its own
+   data and the account holds its own. These pure functions decide what is on each side and
+   combine them. Rows are matched by id (ids are random UUIDs made on each device, so two
+   devices almost never share one); where both sides have the same id, the account's
+   version wins. */
+
+// Is this just the blank starting state (one empty default workout, nothing logged)? Then there is nothing to ask about.
+function isUntouchedState(state) {
+  const workouts = records(state.workouts);
+  const cardio = isRecord(state.cardio) ? records(state.cardio.items) : [];
+  return workouts.length <= 1
+    && workouts.every(w => w.name === DEFAULT_WORKOUT_NAME && records(w.items).length === 0)
+    && records(state.customExercises).length === 0
+    && cardio.length === 0
+    && records(state.history).length === 0;
+}
+
+// How much is in a set of rows from the cloud (rows marked deleted don't count)
+function countRemoteRows(remote) {
+  const live = table => (Array.isArray(remote[table]) ? remote[table] : []).filter(r => isRecord(r) && !r.deleted_at);
+  return { workouts: live("workouts").length, sessions: live("sessions").length, customExercises: live("custom_exercises").length };
+}
+
+// Combines this device's data with the account's rows. Returns { state, snapshot } as new objects.
+// keepLocal = false gives the account's data only (this device's own is dropped, except its theme and other device-only settings).
+// The snapshot says "these rows are already in the cloud", so whatever exists only here is sent on the next sync.
+function mergeStates(local, remote, keepLocal = true) {
+  let base;
+  if (keepLocal) {
+    base = JSON.parse(JSON.stringify(local));
+  } else {
+    base = defaultState();
+    ["theme", "collapsed", "hintsSeen"].forEach(key => { if (local[key] !== undefined) base[key] = JSON.parse(JSON.stringify(local[key])); });
+  }
+  // The blank default workout isn't worth keeping next to real ones
+  if (countRemoteRows(remote).workouts > 0) {
+    base.workouts = records(base.workouts).filter(w => !(w.name === DEFAULT_WORKOUT_NAME && records(w.items).length === 0));
+  }
+  // Pretend this device's copy of every shared row is already up to date, so the account's version replaces it
+  const localRows = stateToRows(base);
+  const seed = {};
+  SYNC_TABLES.forEach(table => {
+    const here = new Map(localRows[table].map(row => [row.id, rowHash(row)]));
+    seed[table] = {};
+    (Array.isArray(remote[table]) ? remote[table] : []).forEach(raw => {
+      const id = table === "user_settings" ? SYNC_SETTINGS_ID : (isRecord(raw) ? raw.id : undefined);
+      if (here.has(id)) seed[table][id] = here.get(id);
+    });
+  });
+  const result = applyRows(base, remote, seed);
+
+  // Lists keep the account's order, with what only exists here added on the end (so the account's rows keep their places)
+  const inAccount = table => new Set((Array.isArray(remote[table]) ? remote[table] : []).filter(r => isRecord(r) && !r.deleted_at).map(r => r.id));
+  const accountFirst = (list, ids, idOf) => [...list.filter(x => ids.has(idOf(x))), ...list.filter(x => !ids.has(idOf(x)))];
+  const workoutIds = inAccount("workouts"), itemIds = inAccount("workout_items"), cardioIds = inAccount("cardio_items");
+  result.state.workouts = accountFirst(result.state.workouts, workoutIds, w => w.id);
+  result.state.workouts.forEach(w => { w.items = accountFirst(w.items, itemIds, i => i.uid); });
+  result.state.cardio.items = accountFirst(result.state.cardio.items, cardioIds, i => i.uid);
+  return result;
+}
+
 // Lets the tests load these functions. The browser skips this line.
 if (typeof module !== "undefined") {
   module.exports = {
@@ -959,6 +1022,7 @@ if (typeof module !== "undefined") {
     groupSessionsByMonth, groupMonthsByYear, searchWords, sessionMatches, searchSessions, highlightText,
     moveTodoItem, DEFAULT_SETTINGS, cleanSettings, unitLabels, showWeight, showDistance, storeWeight, storeDistance,
     BACKUP_APP, BACKUP_VERSION, buildExport, exportFileName, parseImport,
-    SYNC_TABLES, stateToRows, rowHash, diffRows, applyRows, cleanRemoteRow
+    SYNC_TABLES, stateToRows, rowHash, diffRows, applyRows, cleanRemoteRow,
+    isUntouchedState, countRemoteRows, mergeStates
   };
 }

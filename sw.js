@@ -20,6 +20,7 @@ const PRECACHE = [
   "js/main.js",
   "js/backup.js",
   "js/sync.js",
+  "js/account.js",
   "js/vendor/supabase.js",
   "js/store.js",
   "js/ui/toast.js",

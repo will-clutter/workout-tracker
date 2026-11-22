@@ -225,6 +225,25 @@
     <h3 class="setting-label" id="syncLabel">Cloud backup</h3>
     <p class="muted">Your workouts are backed up automatically in the background, with no account needed. This device keeps working without a connection. Without an account, a backup can't be recovered if this browser's data is cleared.</p>
     <p id="syncStatus" class="muted" aria-labelledby="syncLabel">Connecting…</p>
+    <h3 class="setting-label" id="accountLabel">Account</h3>
+    <p id="accountInfo" class="muted">Checking…</p>
+    <form id="accountEmailForm" class="account-form">
+      <label class="field-label" for="accountEmail">Email</label>
+      <input class="text-input" id="accountEmail" name="email" type="email" autocomplete="email" maxlength="254" required>
+      <button type="submit" class="btn small">Send code</button>
+    </form>
+    <form id="accountCodeForm" class="account-form hidden">
+      <label class="field-label" for="accountCode">Code from the email</label>
+      <input class="text-input" id="accountCode" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required>
+      <div class="editor-actions">
+        <button type="submit" class="btn small primary">Confirm</button>
+        <button type="button" id="accountCodeCancel" class="btn small">Cancel</button>
+      </div>
+    </form>
+    <div id="accountSignedIn" class="editor-actions hidden">
+      <button type="button" id="signOutBtn" class="btn small">Sign out</button>
+    </div>
+    <p id="accountMessage" class="muted" role="status"></p>
     <h3 class="setting-label" id="dataLabel">Your data</h3>
     <p class="muted">Your data is saved on this device. Export a backup file to keep a copy, or to move to another device. Importing replaces everything here.</p>
     <div class="editor-actions">

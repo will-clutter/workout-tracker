@@ -18,6 +18,8 @@ import { redrawEverything } from "./backup.js";
 const SUPABASE_URL = "https://qjgpcljpjxvfhmiabffn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_gMI73N0jNLekzJbj9kXfGg_VToT1bqW";
 const META_KEY = STORAGE_KEY + "-sync"; // { userId, cursors, snapshot }: where this device is up to
+export const STASH_KEY = STORAGE_KEY + "-anon-session"; // the anonymous sign-in, kept safe while signing in with an email
+const AUTH_STORAGE_KEY = "sb-" + SUPABASE_URL.split("//")[1].split(".")[0] + "-auth-token"; // where supabase-js keeps the session
 const SAVE_DELAY_MS = 3000;   // wait a moment after a save, so a burst of edits goes up together
 const CHUNK_SIZE = 200;
 const PULL_PAGE = 1000;
@@ -25,7 +27,7 @@ const PULL_OVERLAP_MS = 5000; // look back a little: a slow save in the cloud ca
 const MAX_RETRY_MS = 5 * 60 * 1000;
 
 let client = null;        // the Supabase client, once it has loaded
-let status = "starting";  // starting | syncing | synced | offline | error | unavailable
+let status = "starting";  // starting | syncing | synced | offline | error | unavailable | paused
 let lastSyncedAt = null;
 let problemCount = 0;     // rows the cloud refused (see markRejected)
 let running = false;
@@ -33,6 +35,8 @@ let again = false;        // a save came in while a sync was running
 let saveTimer = null;
 let retryTimer = null;
 let retryDelay = 15000;
+let paused = false;       // true while signing in with an email, so nothing is sent to the wrong account
+let onSwitch = null;      // called when this browser turns out to be signed in to a different (email) account
 
 export function setupSync() {
   store.onSaved = scheduleSync;
@@ -40,6 +44,21 @@ export function setupSync() {
   window.addEventListener("offline", () => setStatus("offline"));
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") runSync(); });
   renderStatus();
+  runSync();
+}
+
+// account.js uses these while signing in with an email
+export const syncNow = () => runSync();
+export function setSwitchHandler(handler) { onSwitch = handler; }
+export async function pauseSync() {
+  paused = true;
+  clearTimeout(saveTimer);
+  clearTimeout(retryTimer);
+  for (let waited = 0; running && waited < 20000; waited += 100) await new Promise(resolve => setTimeout(resolve, 100));
+  setStatus("paused");
+}
+export function resumeSync() {
+  paused = false;
   runSync();
 }
 
@@ -57,6 +76,19 @@ function saveMeta(meta) {
   try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (err) { /* storage full or blocked: we just redo some work next time */ }
 }
 
+// The anonymous sign-in, kept while an email sign-in is under way, so Cancel can go back to it.
+export function saveStash(session) {
+  try {
+    localStorage.setItem(STASH_KEY, JSON.stringify({ access_token: session.access_token, refresh_token: session.refresh_token, userId: session.user.id }));
+  } catch (err) { /* storage blocked: Cancel then falls back to a fresh anonymous sign-in */ }
+}
+export function loadStash() {
+  try { return JSON.parse(localStorage.getItem(STASH_KEY)); } catch (err) { return null; }
+}
+export function clearStash() {
+  try { localStorage.removeItem(STASH_KEY); } catch (err) { /* nothing to do */ }
+}
+
 /* ---------- running a sync ---------- */
 
 function scheduleSync() {
@@ -66,6 +98,7 @@ function scheduleSync() {
 
 async function runSync() {
   clearTimeout(saveTimer);
+  if (paused) return;
   if (running) { again = true; return; }
   running = true;
   try {
@@ -86,11 +119,20 @@ async function runSync() {
 async function syncOnce() {
   if (!navigator.onLine) return setStatus("offline");
   setStatus("syncing");
-  const supabase = await getClient();
+  const supabase = await getSyncClient();
   if (!supabase) return setStatus("unavailable");
 
-  const userId = await getUserId(supabase);
+  const user = await getUser(supabase);
+  const userId = user.id;
   let meta = loadMeta();
+  if (!user.is_anonymous && meta.userId !== userId && onSwitch) {
+    // Signed in with an email on this browser (say, from the link in an email) and this device hasn't
+    // synced with that account yet. Don't send or receive anything until the person has decided what to do.
+    paused = true;
+    setStatus("paused");
+    setTimeout(() => onSwitch(user), 0);
+    return;
+  }
   if (meta.userId !== userId) meta = { userId, cursors: {}, snapshot: {} }; // someone else's cloud copy: start fresh
 
   // Receive first, so that a row you haven't touched picks up other devices' changes before we send ours
@@ -104,15 +146,22 @@ async function syncOnce() {
 }
 
 // Signed in already (supabase-js remembers the session), or sign in anonymously
-async function getUserId(supabase) {
+async function getUser(supabase) {
   const { data } = await supabase.auth.getSession();
-  if (data.session) return data.session.user.id;
+  if (data.session) return data.session.user;
   const result = await supabase.auth.signInAnonymously();
   if (result.error) throw result.error;
-  return result.data.session.user.id;
+  return result.data.session.user;
 }
 
-async function getClient() {
+// The Supabase client, loaded the first time it's needed. null if it couldn't load (it then tries again next time).
+let clientPromise = null;
+export function getSyncClient() {
+  if (!clientPromise) clientPromise = createSyncClient().then(result => { if (!result) clientPromise = null; return result; });
+  return clientPromise;
+}
+
+async function createSyncClient() {
   if (client) return client;
   if (!(window.supabase && window.supabase.createClient)) {
     const loaded = await new Promise(resolve => {
@@ -124,20 +173,30 @@ async function getClient() {
     });
     if (!loaded) return null;
   }
+  // Arriving from the link in a sign-in email: supabase-js is about to replace the saved session with the
+  // one in the link, so keep a copy of the anonymous one first (Cancel needs it).
+  if (location.hash.includes("access_token=")) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY));
+      if (saved && saved.user && saved.user.is_anonymous) saveStash(saved);
+    } catch (err) { /* nothing saved, nothing to keep */ }
+  }
   client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
   return client;
 }
 
 /* ---------- receiving ---------- */
 
-async function pull(supabase, meta) {
+// Every row the cloud has changed since the cursors (all of them, with no cursors).
+// Returns { remote: {table: [rows]}, newest: {table: latest updated_at} }.
+export async function fetchAccountRows(supabase, cursors = {}) {
   const remote = {};
   const newest = {};
   for (const table of SYNC_TABLES) {
     remote[table] = [];
-    const cursor = meta.cursors[table];
+    const cursor = cursors[table];
     const since = cursor ? new Date(Date.parse(cursor) - PULL_OVERLAP_MS).toISOString() : "1970-01-01T00:00:00Z";
     for (let from = 0; ; from += PULL_PAGE) {
       const { data, error } = await supabase.from(table).select("*").gt("updated_at", since)
@@ -149,6 +208,11 @@ async function pull(supabase, meta) {
     }
     remote[table].forEach(row => { if (!newest[table] || row.updated_at > newest[table]) newest[table] = row.updated_at; });
   }
+  return { remote, newest };
+}
+
+async function pull(supabase, meta) {
+  const { remote, newest } = await fetchAccountRows(supabase, meta.cursors);
 
   // From here to the end of this function nothing waits, so nothing you do can sneak in between
   const result = applyRows(store.state, remote, meta.snapshot);
@@ -161,6 +225,15 @@ async function pull(supabase, meta) {
   meta.snapshot = result.snapshot;
   Object.assign(meta.cursors, newest);
   saveMeta(meta);
+}
+
+// Makes this device belong to an account: swaps in the combined data and remembers what the cloud already has.
+// (Whatever exists only here isn't in the snapshot, so the next sync sends it.)
+export function adoptAccount(userId, state, snapshot, cursors) {
+  store.state = state;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store.state)); } catch (err) { /* storage full: still shown, saved next time */ }
+  saveMeta({ userId, cursors, snapshot });
+  redrawEverything();
 }
 
 /* ---------- sending ---------- */
@@ -237,6 +310,7 @@ function renderStatus() {
   const time = lastSyncedAt ? lastSyncedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
   const lines = {
     starting: "Connecting…",
+    paused: "Waiting for you to finish signing in…",
     syncing: "Syncing…",
     synced: `Backed up${time ? " at " + time : ""}.`,
     offline: "Offline. Changes will back up when you're back online.",

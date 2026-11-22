@@ -294,3 +294,113 @@ test("rowHash: same content gives the same fingerprint, any change gives another
   assert.equal(rowHash(row), rowHash({ ...row }));
   assert.notEqual(rowHash(row), rowHash({ ...row, name: "other" }));
 });
+
+/* ---------- signing in on a device that already has data ---------- */
+
+const { isUntouchedState, countRemoteRows, mergeStates } = require("../js/logic.js");
+
+// The account's rows as the cloud would send them
+function accountRows() {
+  const acct = sampleState();
+  return { acct, remote: asRemote(stateToRows(acct)) };
+}
+
+test("isUntouchedState: only the blank starting state counts", () => {
+  assert.equal(isUntouchedState(defaultState()), true);
+  const withItem = defaultState();
+  withItem.workouts[0].items.push({ uid: makeId(), exId: "A" });
+  assert.equal(isUntouchedState(withItem), false);
+  const renamed = defaultState();
+  renamed.workouts[0].name = "Push";
+  assert.equal(isUntouchedState(renamed), false);
+  const logged = defaultState();
+  logged.history.push({ id: makeId(), items: [] });
+  assert.equal(isUntouchedState(logged), false);
+  assert.equal(isUntouchedState(sampleState()), false);
+});
+
+test("countRemoteRows: counts the account's workouts, sessions and custom exercises, not deleted ones", () => {
+  const { remote } = accountRows();
+  remote.workouts[1].deleted_at = "2026-11-21T00:00:00Z";
+  assert.deepEqual(countRemoteRows(remote), { workouts: 1, sessions: 2, customExercises: 2 });
+  assert.deepEqual(countRemoteRows({}), { workouts: 0, sessions: 0, customExercises: 0 });
+});
+
+test("mergeStates: a blank device just takes the account's data", () => {
+  const { acct, remote } = accountRows();
+  const { state, snapshot } = mergeStates(defaultState(), remote);
+  assert.deepEqual(state.workouts, acct.workouts); // the empty default workout is dropped
+  assert.deepEqual(state.history, acct.history);
+  assert.deepEqual(state.settings, acct.settings);
+  assert.equal(state.activeWorkoutId, acct.activeWorkoutId);
+  const d = diffRows(stateToRows(state), snapshot);
+  SYNC_TABLES.forEach(t => { assert.deepEqual(d.upserts[t], []); assert.deepEqual(d.deletes[t], []); }); // nothing to send
+});
+
+test("mergeStates: what only exists here is kept and will be sent; what only exists in the account is added", () => {
+  const { acct, remote } = accountRows();
+  const mine = defaultState();
+  mine.workouts[0].name = "Mine only";
+  mine.workouts[0].items.push({ uid: makeId(), exId: "Squat", sets: "5", reps: "5", weight: "", notes: "" });
+  const { state, snapshot } = mergeStates(mine, remote);
+  assert.deepEqual(state.workouts.map(w => w.name).sort(), ["Mine only", "Pull", "Push"]);
+  const d = diffRows(stateToRows(state), snapshot);
+  assert.deepEqual(d.upserts.workouts.map(r => r.name), ["Mine only"]);
+  assert.equal(d.upserts.workout_items.length, 1);
+  assert.equal(d.upserts.sessions.length, 0);
+  assert.equal(state.history.length, acct.history.length);
+});
+
+test("mergeStates: where both sides have the same row, the account's version wins", () => {
+  const { acct, remote } = accountRows();
+  const mine = JSON.parse(JSON.stringify(acct));
+  mine.workouts[0].name = "Edited here";
+  mine.workouts[0].items[0].reps = "99";
+  const { state } = mergeStates(mine, remote);
+  assert.equal(state.workouts[0].name, "Push");
+  assert.equal(state.workouts[0].items[0].reps, "10");
+});
+
+test("mergeStates: the account's settings win, and this device's are kept if the account has none", () => {
+  const { remote } = accountRows();
+  const mine = defaultState();
+  assert.deepEqual(mergeStates(mine, remote).state.settings, { units: "metric", durationFormat: "clock" });
+  remote.user_settings = [];
+  mine.settings = { units: "metric", durationFormat: "words" };
+  assert.deepEqual(mergeStates(mine, remote).state.settings, { units: "metric", durationFormat: "words" });
+});
+
+test("mergeStates: the blank default workout is kept when the account has no workouts", () => {
+  const mine = defaultState();
+  const { state } = mergeStates(mine, {});
+  assert.deepEqual(state.workouts, mine.workouts);
+});
+
+test("mergeStates: something the account deleted is removed here", () => {
+  const { acct, remote } = accountRows();
+  remote.workouts[1].deleted_at = "2026-11-21T00:00:00Z";
+  const { state } = mergeStates(JSON.parse(JSON.stringify(acct)), remote);
+  assert.deepEqual(state.workouts.map(w => w.name), ["Push"]);
+});
+
+test("mergeStates: account data only drops this device's own data but keeps its theme and hints", () => {
+  const { acct, remote } = accountRows();
+  const mine = defaultState();
+  mine.workouts[0].name = "Mine only";
+  mine.workouts[0].items.push({ uid: makeId(), exId: "Squat", sets: "5", reps: "5", weight: "", notes: "" });
+  mine.theme = "emerald";
+  mine.hintsSeen = { crossOff: true };
+  const { state } = mergeStates(mine, remote, false);
+  assert.deepEqual(state.workouts, acct.workouts);
+  assert.equal(state.theme, "emerald");
+  assert.deepEqual(state.hintsSeen, { crossOff: true });
+});
+
+test("mergeStates: does not change what it is given", () => {
+  const { acct, remote } = accountRows();
+  const mine = sampleState();
+  const before = JSON.stringify([mine, remote, acct]);
+  mergeStates(mine, remote);
+  mergeStates(mine, remote, false);
+  assert.equal(JSON.stringify([mine, remote, acct]), before);
+});

@@ -782,3 +782,8 @@ body[data-tab="workout"] .toast, body[data-tab="cardio"] .toast {
 .icon-btn .icon { margin: auto; }
 .icon.outline { fill: none; } /* line icons (the gear) draw with the stroke set in the SVG */
 .icon.inline { display: inline-block; width: 13px; height: 13px; vertical-align: -2px; } /* sits in a line of text */
+
+/* ---------- Settings: account (email sign-in) ---------- */
+.account-form { display: grid; gap: 8px; margin-top: 8px; }
+.account-form label.field-label { font-size: 13px; color: var(--muted); }
+#accountMessage:empty { display: none; }

@@ -21,3 +21,5 @@
 - `store.onSaved` is called at the end of `saveState()`; code that writes localStorage itself (like a pull) must not call `saveState()`, or it triggers another sync.
 - Theme, collapsed headings and swipe hints are per-device and never synced. `workout-logbook-v1-sync` holds the sync bookkeeping (snapshot of what the cloud has); never delete it without also expecting a full re-sync.
 - `js/vendor/supabase.js` is a pinned copy of supabase-js, not our code: don't edit it.
+- `js/account.js` is the email sign-in (code + link). Combining this device's data with an account is the pure `mergeStates` in `logic.js` (unit-tested); `account.js` only does the screens and steps. While it runs, sync is paused (`pauseSync`/`resumeSync`) so nothing is sent to the wrong account.
+- There is deliberately no Undo after combining with an account: restoring the old state would delete the account's rows from the cloud. `workout-logbook-v1-premerge` keeps a copy of this device's data from before the first merge.
